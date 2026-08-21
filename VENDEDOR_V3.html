@@ -166,15 +166,16 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 
       <!-- Paso A: buscar factura -->
       <div class="tarjeta" id="tarjetaBuscar">
-        <div class="tarjeta-titulo">🔍 Buscar factura</div>
+        <div class="tarjeta-titulo">📋 Tus facturas de hoy</div>
         <div class="campo">
-          <input type="text" id="inpBuscar" placeholder="Folio o nombre del cliente" oninput="buscarFactura()">
+          <input type="text" id="inpBuscar" placeholder="Filtrar por folio o nombre (opcional)" oninput="buscarFactura()">
+        </div>
+        <div id="avisoSinPlanilla" style="display:none;background:#FEF2F2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:#991b1b;font-weight:700;">
+          ⚠️ No tienes ninguna planilla activa hoy. Pídele a tu encargada de planillas que la cargue y active.
         </div>
         <div id="resultadosBusqueda"></div>
-        <div id="sinResultados" style="display:none;">
-          <div class="vacio">No se encontró esa factura en tu planilla de hoy.</div>
-          <button type="button" class="btn-secundario" onclick="abrirCobroFueraPlanilla()">➕ Cobro fuera de planilla</button>
-        </div>
+        <div id="sinResultados" style="display:none;"></div>
+        <button type="button" class="btn-secundario" onclick="abrirCobroFueraPlanilla()">➕ Cobro fuera de planilla (cliente adelantó un pago)</button>
       </div>
 
       <!-- Paso B: factura seleccionada + formulario de cobro -->
@@ -424,25 +425,41 @@ function cargarPlanillaActiva(){
     .once('value').then(function(snap){
       planillaActiva = null;
       snap.forEach(function(c){ planillaActiva = {ts: c.key, facturas: c.val().facturas || {}}; });
-      if(!planillaActiva){ toast('No tienes una planilla activa hoy','warn'); }
-    });
+      if(!planillaActiva){
+        document.getElementById('resultadosBusqueda').innerHTML = '';
+        document.getElementById('sinResultados').style.display = 'none';
+        document.getElementById('avisoSinPlanilla').style.display = '';
+        toast('No tienes una planilla activa hoy','warn');
+      } else {
+        document.getElementById('avisoSinPlanilla').style.display = 'none';
+        buscarFactura(); // pinta la lista completa de una vez
+      }
+    }).catch(function(e){ toast('Error al cargar planilla: '+e.message,'err'); });
 }
 
-/* ── Búsqueda de facturas ── */
+/* ── Búsqueda de facturas — sin escribir nada, muestra TODAS las pendientes ── */
 function buscarFactura(){
   var q = document.getElementById('inpBuscar').value.trim().toUpperCase();
   var cont = document.getElementById('resultadosBusqueda');
   var sinRes = document.getElementById('sinResultados');
-  if(!q || !planillaActiva){ cont.innerHTML=''; sinRes.style.display='none'; return; }
-  var facts = Object.values(planillaActiva.facturas).filter(function(f){
-    return f.estado === 'pendiente' &&
-      (String(f.folio).toUpperCase().indexOf(q)>=0 || String(f.nombre).toUpperCase().indexOf(q)>=0);
-  }).slice(0,8);
-  if(!facts.length){ cont.innerHTML=''; sinRes.style.display=''; return; }
+  if(!planillaActiva){ cont.innerHTML=''; sinRes.style.display='none'; return; }
+  var todas = Object.values(planillaActiva.facturas).filter(function(f){ return f.estado === 'pendiente' || f.estado === 'abono'; });
+  todas.sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
+  var facts = q ? todas.filter(function(f){
+    return String(f.folio).toUpperCase().indexOf(q)>=0 || String(f.nombre).toUpperCase().indexOf(q)>=0;
+  }) : todas;
+
+  if(!facts.length){
+    cont.innerHTML = '<div class="vacio">'+(q?'Sin resultados para "'+q+'"':'No hay facturas pendientes en tu planilla')+'</div>';
+    sinRes.style.display = q ? '' : 'none';
+    return;
+  }
   sinRes.style.display='none';
-  cont.innerHTML = facts.map(function(f){
-    return '<div class="busc-item" onclick="seleccionarFactura(\''+f.folio.replace(/'/g,"\\'")+'\')">'+
-      '<div class="busc-cliente">'+f.nombre+'</div>'+
+  var contador = '<div style="font-size:11px;color:var(--gris);font-weight:800;margin-bottom:8px;">'+facts.length+' factura'+(facts.length>1?'s':'')+(q?' encontrada'+(facts.length>1?'s':''):' pendiente'+(facts.length>1?'s':''))+'</div>';
+  cont.innerHTML = contador + facts.slice(0,60).map(function(f){
+    var abonoTag = f.estado==='abono' ? ' <span style="color:var(--ora);font-size:10px">· ABONO</span>' : '';
+    return '<div class="busc-item" onclick="seleccionarFactura(\''+String(f.folio).replace(/'/g,"\\'")+'\')">'+
+      '<div class="busc-cliente">'+f.nombre+abonoTag+'</div>'+
       '<div class="busc-meta">Folio '+f.folio+' · Vence '+f.vencimiento+'</div>'+
       '<div class="busc-saldo">'+fmt(f.saldo)+'</div>'+
     '</div>';
