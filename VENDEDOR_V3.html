@@ -188,10 +188,11 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           <div class="tipo-opt" data-tipo="Transferencia" onclick="elegirTipo('Transferencia')">🏦 Transferencia</div>
           <div class="tipo-opt" data-tipo="Cheque" onclick="elegirTipo('Cheque')">📝 Cheque</div>
           <div class="tipo-opt" data-tipo="Deposito" onclick="elegirTipo('Deposito')">🏧 Depósito</div>
+          <div class="tipo-opt" data-tipo="Tarjeta" onclick="elegirTipo('Tarjeta')">💳 Tarjeta de crédito</div>
         </div>
 
         <div class="campo" id="bloqueBanco" style="display:none;">
-          <label>Banco</label>
+          <label id="lblBanco">Banco</label>
           <select id="selBanco">
             <option>INBURSA</option><option>BANORTE</option><option>SCOTIABANK</option><option>BANAMEX</option>
             <option>SANTANDER</option><option>BBVA-9</option><option>BBVA-1</option><option>AZTECA</option>
@@ -199,24 +200,36 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           </select>
         </div>
 
-        <div class="campo">
+        <div class="toggle-desc" onclick="toggleDevolucion()">
+          <input type="checkbox" id="chkDevolucion" onclick="event.stopPropagation();toggleDevolucion(true)">
+          <span>¿Hubo devolución de material?</span>
+        </div>
+        <div id="bloqueDevolucion" style="display:none;">
+          <div class="campo"><label>Devolución ($)</label><input type="number" id="inpDevolucion" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
+        </div>
+
+        <div class="tarjeta-titulo" style="margin-top:6px;">¿Pagó completo o es abono?</div>
+        <div class="tipo-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="tipo-opt act" id="modoCompleto" onclick="elegirModo('completo')">✅ Pago completo</div>
+          <div class="tipo-opt" id="modoAbono" onclick="elegirModo('abono')">🔸 Abono / parcial</div>
+        </div>
+
+        <div class="campo" id="bloqueDescuentoPct">
+          <label>% Descuento (solo si paga completo)</label>
+          <select id="selDescuentoPct" onchange="recalcular()">
+            <option value="0">Sin descuento</option>
+            <option value="1">1%</option><option value="2">2%</option><option value="3">3%</option>
+            <option value="4">4%</option><option value="5">5%</option><option value="6">6%</option>
+            <option value="7">7%</option><option value="8">8%</option><option value="9">9%</option>
+            <option value="10">10%</option><option value="11">11%</option><option value="12">12%</option>
+            <option value="13">13%</option><option value="14">14%</option><option value="15">15%</option>
+          </select>
+          <div id="descuentoFijoAviso" style="display:none;font-size:11px;font-weight:800;color:var(--verde);margin-top:6px;"></div>
+        </div>
+
+        <div class="campo" id="bloqueMontoAbono" style="display:none;">
           <label>Monto que pagó ($)</label>
           <input type="number" id="inpMonto" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="recalcular()">
-        </div>
-
-        <div class="toggle-desc" onclick="toggleDescuento()">
-          <input type="checkbox" id="chkDescuento" onclick="event.stopPropagation();toggleDescuento(true)">
-          <span>¿Hubo descuento o devolución de material?</span>
-        </div>
-
-        <div id="bloqueDescuento" style="display:none;">
-          <div class="fila2">
-            <div class="campo"><label>Devolución ($)</label><input type="number" id="inpDevolucion" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
-            <div class="campo"><label>Descuento ($)</label><input type="number" id="inpDescuento" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
-          </div>
-          <div style="font-size:10px;color:var(--gris);margin-top:-6px;margin-bottom:10px;line-height:1.4;">
-            Primero se resta la devolución, y el descuento aplica sobre lo que queda — como te lo dice el cliente.
-          </div>
         </div>
 
         <div class="calc-box" id="calcBox"></div>
@@ -493,11 +506,31 @@ function mostrarFormularioCobro(){
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
-  document.getElementById('inpDescuento').value = '';
-  document.getElementById('chkDescuento').checked = false;
-  document.getElementById('bloqueDescuento').style.display = 'none';
+  document.getElementById('selDescuentoPct').value = '0';
+  document.getElementById('descuentoFijoAviso').style.display = 'none';
+  document.getElementById('chkDevolucion').checked = false;
+  document.getElementById('bloqueDevolucion').style.display = 'none';
   elegirTipo('Efectivo');
+  elegirModo('completo');
   recalcular();
+  buscarDescuentoFijoDelCliente();
+}
+
+/* ── Si este cliente tiene un % de descuento fijo cargado (Excel de descuentos), lo propone solo ── */
+function buscarDescuentoFijoDelCliente(){
+  if(!facturaSel || !facturaSel.clave) return;
+  db.ref('descuentosClientes/'+String(facturaSel.clave).trim()).once('value').then(function(snap){
+    var d = snap.val();
+    var aviso = document.getElementById('descuentoFijoAviso');
+    if(d && d.pct){
+      document.getElementById('selDescuentoPct').value = String(d.pct);
+      aviso.style.display = '';
+      aviso.textContent = '✓ Este cliente tiene '+d.pct+'% de descuento fijo — ya viene seleccionado, puedes cambiarlo si hace falta';
+      recalcular();
+    } else {
+      aviso.style.display = 'none';
+    }
+  }).catch(function(){ /* si falla la consulta, simplemente no se propone nada, no bloquea el cobro */ });
 }
 function cancelarSeleccion(){
   facturaSel = null; esFueraDePlanilla = false;
@@ -510,52 +543,87 @@ function cancelarSeleccion(){
 
 function elegirTipo(t){
   tipoActual = t;
-  document.querySelectorAll('.tipo-opt').forEach(function(el){
+  document.querySelectorAll('#tipoGrid .tipo-opt').forEach(function(el){
     el.classList.toggle('act', el.getAttribute('data-tipo')===t);
   });
   document.getElementById('bloqueBanco').style.display = (t==='Efectivo') ? 'none' : '';
+  document.getElementById('lblBanco').textContent = (t==='Tarjeta') ? 'Banco / Terminal' : 'Banco';
 }
-function toggleDescuento(fromClick){
-  var chk = document.getElementById('chkDescuento');
+
+/* ── Modo de pago: completo (habilita % descuento) o abono (sin descuento) ── */
+var modoPago = 'completo';
+function elegirModo(m){
+  modoPago = m;
+  document.getElementById('modoCompleto').classList.toggle('act', m==='completo');
+  document.getElementById('modoAbono').classList.toggle('act', m==='abono');
+  document.getElementById('bloqueDescuentoPct').style.display = (m==='completo') ? '' : 'none';
+  document.getElementById('bloqueMontoAbono').style.display = (m==='abono') ? '' : 'none';
+  if(m==='completo'){ document.getElementById('selDescuentoPct').value = document.getElementById('selDescuentoPct').value || '0'; }
+  else { document.getElementById('selDescuentoPct').value = '0'; }
+  recalcular();
+}
+function toggleDevolucion(fromClick){
+  var chk = document.getElementById('chkDevolucion');
   if(fromClick===true){ /* el click ya cambió el checkbox */ }
-  document.getElementById('bloqueDescuento').style.display = chk.checked ? '' : 'none';
-  if(!chk.checked){ document.getElementById('inpDevolucion').value=''; document.getElementById('inpDescuento').value=''; }
+  document.getElementById('bloqueDevolucion').style.display = chk.checked ? '' : 'none';
+  if(!chk.checked){ document.getElementById('inpDevolucion').value=''; }
   recalcular();
 }
 
-/* ── Cálculo en vivo: Total - Devolución - Descuento - Pagado = Saldo restante ── */
+/* ── Cálculo en vivo ──
+   Pago completo: Subtotal (tras devolución) - % Descuento = monto a cobrar. Siempre liquida.
+   Abono: el vendedor escribe el monto, SIN descuento posible. ── */
 function recalcular(){
   if(!facturaSel) return;
   var saldoAntes = facturaSel.saldo;
   var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
-  var descuentoInput = parseFloat(document.getElementById('inpDescuento').value) || 0;
-  var pagado = parseFloat(document.getElementById('inpMonto').value) || 0;
-
-  var subtotalTrasDevolucion = Math.max(0, saldoAntes - devolucion);
-  var restante = Math.max(0, subtotalTrasDevolucion - descuentoInput - pagado);
+  var subtotal = Math.max(0, saldoAntes - devolucion);
   var box = document.getElementById('calcBox');
   var filas = '<div class="calc-row"><span>Saldo de la factura</span><span>'+fmt(saldoAntes)+'</span></div>';
   if(devolucion>0) filas += '<div class="calc-row"><span>− Devolución</span><span>'+fmt(devolucion)+'</span></div>';
-  if(descuentoInput>0) filas += '<div class="calc-row"><span>− Descuento</span><span>'+fmt(descuentoInput)+'</span></div>';
-  filas += '<div class="calc-row"><span>− Pagado</span><span>'+fmt(pagado)+'</span></div>';
-  var claseTotal = restante <= 0.005 ? 'ok' : 'deb';
-  var txt = restante <= 0.005 ? 'LIQUIDADA ✓' : ('Sigue debiendo '+fmt(restante));
-  filas += '<div class="calc-row total '+claseTotal+'"><span>Resultado</span><span>'+txt+'</span></div>';
+  if(devolucion>0) filas += '<div class="calc-row"><span>Subtotal</span><span>'+fmt(subtotal)+'</span></div>';
+
+  if(modoPago==='completo'){
+    var pct = parseInt(document.getElementById('selDescuentoPct').value)||0;
+    var descuentoMonto = subtotal * (pct/100);
+    var aCobrar = subtotal - descuentoMonto;
+    if(pct>0) filas += '<div class="calc-row"><span>− Descuento ('+pct+'%)</span><span>'+fmt(descuentoMonto)+'</span></div>';
+    filas += '<div class="calc-row total ok"><span>A COBRAR</span><span>'+fmt(aCobrar)+'</span></div>';
+    filas += '<div class="calc-row total ok" style="font-size:11px;"><span>Resultado</span><span>FACTURA LIQUIDADA ✓</span></div>';
+  } else {
+    var pagado = parseFloat(document.getElementById('inpMonto').value) || 0;
+    var restante = Math.max(0, subtotal - pagado);
+    filas += '<div class="calc-row"><span>− Pagó (abono)</span><span>'+fmt(pagado)+'</span></div>';
+    var claseTotal = restante <= 0.005 ? 'ok' : 'deb';
+    var txt = restante <= 0.005 ? 'LIQUIDADA ✓' : ('Sigue debiendo '+fmt(restante));
+    filas += '<div class="calc-row total '+claseTotal+'"><span>Resultado</span><span>'+txt+'</span></div>';
+  }
   box.innerHTML = filas;
 }
 
 /* ── Registrar el cobro ── */
 function registrarCobro(){
   if(!facturaSel){ toast('Selecciona una factura primero','err'); return; }
-  var monto = parseFloat(document.getElementById('inpMonto').value) || 0;
-  var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
-  var descuento = parseFloat(document.getElementById('inpDescuento').value) || 0;
-  if(monto<=0 && devolucion<=0 && descuento<=0){ toast('Captura al menos un monto','err'); return; }
-  if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco','err'); return; }
+  if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco/terminal','err'); return; }
 
   var saldoAntes = facturaSel.saldo;
-  var subtotalTrasDevolucion = Math.max(0, saldoAntes - devolucion);
-  var saldoDespues = Math.max(0, subtotalTrasDevolucion - descuento - monto);
+  var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
+  var subtotal = Math.max(0, saldoAntes - devolucion);
+
+  var monto, descuento, descuentoPct, saldoDespues;
+  if(modoPago === 'completo'){
+    descuentoPct = parseInt(document.getElementById('selDescuentoPct').value) || 0;
+    descuento = subtotal * (descuentoPct/100);
+    monto = subtotal - descuento;
+    saldoDespues = 0; // pago completo siempre liquida la factura
+  } else {
+    descuentoPct = 0; descuento = 0; // NUNCA se permite descuento en abono
+    monto = parseFloat(document.getElementById('inpMonto').value) || 0;
+    saldoDespues = Math.max(0, subtotal - monto);
+  }
+
+  if(monto<=0 && devolucion<=0){ toast('Captura al menos un monto','err'); return; }
+
   var banco = tipoActual==='Efectivo' ? null : document.getElementById('selBanco').value;
   var ahora = new Date();
   var fecha = ahora.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -567,6 +635,7 @@ function registrarCobro(){
     fueraDePlanilla: esFueraDePlanilla,
     planillaTs: esFueraDePlanilla ? null : (planillaActiva ? planillaActiva.ts : null),
     tipo: tipoActual, banco: banco,
+    modoPago: modoPago, descuentoPct: descuentoPct,
     monto: monto, devolucion: devolucion, descuento: descuento,
     saldoAntes: saldoAntes, saldoDespues: saldoDespues,
     ts: ahora.getTime(), fecha: fecha, folioRecibo: folioRecibo,

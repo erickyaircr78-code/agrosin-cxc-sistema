@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Descuentos por Cliente — AGROSIN</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Montserrat',sans-serif;}
+body{background:#f1f5f9;min-height:100vh;padding:24px 16px;}
+.wrap{max-width:640px;margin:0 auto;}
+.header{background:#1d4ed8;border-radius:16px;padding:24px 26px;color:#fff;margin-bottom:20px;}
+.header .tit{font-size:20px;font-weight:900;}
+.header .sub{font-size:12px;opacity:.75;margin-top:4px;}
+.tarjeta{background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(0,0,0,.06);padding:22px;margin-bottom:16px;}
+.tarjeta h2{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#1d4ed8;margin-bottom:14px;}
+.drop{border:2.5px dashed #cbd5e1;border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;background:#f8fafc;}
+.drop:hover{border-color:#1d4ed8;background:#eff6ff;}
+.drop .ico{font-size:38px;margin-bottom:8px;}
+.drop .txt{font-size:14px;font-weight:800;color:#334155;}
+.drop .sub{font-size:11px;color:#94a3b8;margin-top:4px;}
+input[type=file]{display:none;}
+.resumen-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px dashed #e2e8f0;font-size:13px;}
+.resumen-row .l{color:#64748b;font-weight:700;}
+.resumen-row .v{font-weight:900;color:#0f172a;}
+.aviso{border-radius:10px;padding:12px 14px;margin-top:12px;font-size:12px;font-weight:700;line-height:1.5;}
+.aviso.warn{background:#FEF3C7;border:1.5px solid #F59E0B;color:#92400e;}
+.aviso.ok{background:#f0fdf4;border:1.5px solid #86efac;color:#15803d;}
+.aviso.err{background:#FEF2F2;border:1.5px solid #fca5a5;color:#991b1b;}
+.dist-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+.dist-item{background:#f8fafc;border-radius:10px;padding:10px 6px;text-align:center;}
+.dist-item .pct{font-size:16px;font-weight:900;color:#1d4ed8;}
+.dist-item .cnt{font-size:10px;color:#64748b;font-weight:700;}
+.btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:15px;font-weight:900;cursor:pointer;font-family:'Montserrat',sans-serif;margin-top:14px;}
+.btn-confirmar{background:#15803d;color:#fff;box-shadow:0 4px 14px rgba(21,128,61,.3);}
+.btn-confirmar:disabled{background:#94a3b8;box-shadow:none;}
+.btn-cancelar{background:#fff;color:#64748b;border:2px solid #e2e8f0;}
+.tabla-preview{max-height:260px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:10px;}
+.tabla-preview table{width:100%;border-collapse:collapse;font-size:11px;}
+.tabla-preview th{background:#f1f5f9;padding:8px 10px;text-align:left;position:sticky;top:0;font-weight:800;color:#475569;}
+.tabla-preview td{padding:7px 10px;border-top:1px solid #f1f5f9;}
+.badge-pct{background:#eff6ff;color:#1d4ed8;font-weight:900;padding:2px 8px;border-radius:8px;font-size:11px;}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(70px);background:#0f172a;color:#fff;padding:13px 26px;border-radius:40px;font-size:13px;font-weight:800;opacity:0;transition:all .3s;z-index:9999;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:#15803d;} .toast.err{background:#dc2626;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="tit">💲 Descuentos por Cliente</div>
+    <div class="sub">Sube el Excel actualizado cada vez que cambien los descuentos — se reemplaza toda la tabla anterior</div>
+  </div>
+
+  <div class="tarjeta" id="tarjetaSubir">
+    <h2>1. Subir Excel</h2>
+    <div class="drop" onclick="document.getElementById('fileInput').click()">
+      <div class="ico">📄</div>
+      <div class="txt">Toca para elegir el archivo</div>
+      <div class="sub">Columnas esperadas: clave, Nombre, Vendedor, Región, actual</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="procesarArchivo(event)">
+  </div>
+
+  <div class="tarjeta" id="tarjetaPreview" style="display:none;">
+    <h2>2. Revisar antes de guardar</h2>
+    <div id="resumenBox"></div>
+    <div id="avisosBox"></div>
+    <div class="tabla-preview" id="tablaPreview"></div>
+    <button type="button" class="btn btn-confirmar" id="btnConfirmar" onclick="confirmarCarga()">✅ Reemplazar tabla de descuentos</button>
+    <button type="button" class="btn btn-cancelar" onclick="cancelarCarga()">Cancelar, elegir otro archivo</button>
+  </div>
+
+  <div class="tarjeta" id="tarjetaActual">
+    <h2>Tabla actual guardada</h2>
+    <div id="actualBox">Cargando…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyBxWhvKsx4DL35wKxine4Av7aVM1XxetgA",
+  authDomain:"agrosin-cxc-sistema.firebaseapp.com",
+  databaseURL:"https://agrosin-cxc-sistema-default-rtdb.firebaseio.com",
+  projectId:"agrosin-cxc-sistema",
+  storageBucket:"agrosin-cxc-sistema.firebasestorage.app",
+  messagingSenderId:"91698273557",
+  appId:"1:91698273557:web:158b43ac5129b2c0849d1c"
+});
+var db = firebase.database();
+firebase.auth().signInAnonymously().catch(function(e){ console.error(e); });
+
+function toast(msg, tipo){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show '+(tipo||'');
+  setTimeout(function(){ t.className='toast'; }, 2800);
+}
+
+/* Tabla fija: código de descuento -> % (según la hoja física de referencia) */
+var MAPA_CODIGO_PCT = {
+  D1:2, D2:3, D3:5, D4:6, D5:7, D6:8, D7:12, D8:10, D9:11, D10:4, D11:13, D12:14, D13:15, D14:9
+};
+function normalizarCodigo(c){
+  return String(c||'').trim().toUpperCase().replace(/[\s\-]/g,''); // "D-1" o "D 1" -> "D1"
+}
+function normalizarRegion(r){
+  r = String(r||'').trim().toUpperCase();
+  if(r==='MÉXICO' || r==='MEXICO' || r==='CDMX') return 'CDMX';
+  if(r==='PUEBLA') return 'PUEBLA';
+  if(r==='MORELOS') return 'MORELOS';
+  return r;
+}
+
+var datosProcesados = null;
+
+function procesarArchivo(ev){
+  var file = ev.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var filas = XLSX.utils.sheet_to_json(ws, {defval:''});
+      analizarFilas(filas);
+    } catch(err){
+      toast('No se pudo leer el archivo: '+err.message,'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function analizarFilas(filas){
+  var clientes = [];
+  var codigosNoReconocidos = {};
+  var sinClave = 0;
+  var distribucion = {};
+
+  filas.forEach(function(f){
+    var clave = f.clave !== undefined ? f.clave : f.Clave;
+    var nombre = f.Nombre || f.nombre || '';
+    var vendedor = f.Vendedor || f.vendedor || '';
+    var region = f['Región'] || f.Region || f.region || '';
+    var codigoRaw = f.actual !== undefined ? f.actual : f.Actual;
+
+    if(clave === undefined || clave === '' || clave === null) { sinClave++; return; }
+    var codigo = normalizarCodigo(codigoRaw);
+    var pct = MAPA_CODIGO_PCT[codigo];
+    if(pct === undefined){ codigosNoReconocidos[codigoRaw] = (codigosNoReconocidos[codigoRaw]||0)+1; return; }
+
+    var zona = normalizarRegion(region);
+    clientes.push({ clave: String(clave).trim(), nombre: String(nombre).trim(), vendedor: String(vendedor).trim(), zona: zona, pct: pct, codigo: codigo });
+    distribucion[pct] = (distribucion[pct]||0) + 1;
+  });
+
+  datosProcesados = clientes;
+
+  document.getElementById('tarjetaSubir').style.display = 'none';
+  document.getElementById('tarjetaPreview').style.display = '';
+
+  var resumen = document.getElementById('resumenBox');
+  resumen.innerHTML =
+    '<div class="resumen-row"><span class="l">Clientes válidos encontrados</span><span class="v">'+clientes.length+'</span></div>'+
+    '<div class="resumen-row"><span class="l">Filas totales en el Excel</span><span class="v">'+filas.length+'</span></div>';
+
+  var avisos = document.getElementById('avisosBox');
+  avisos.innerHTML = '';
+  if(sinClave>0){
+    avisos.innerHTML += '<div class="aviso warn">⚠️ '+sinClave+' fila(s) no tenían clave de cliente — se ignoraron.</div>';
+  }
+  var codigosMalos = Object.keys(codigosNoReconocidos);
+  if(codigosMalos.length){
+    avisos.innerHTML += '<div class="aviso err">❌ Estos códigos de descuento no se reconocen (revisa el Excel o avísame para agregarlos a la tabla): '+
+      codigosMalos.map(function(c){ return '"'+c+'" ('+codigosNoReconocidos[c]+' clientes)'; }).join(', ')+'</div>';
+  }
+  if(!clientes.length){
+    avisos.innerHTML += '<div class="aviso err">No se pudo leer ningún cliente válido. Revisa que las columnas se llamen clave, Nombre, Vendedor, Región y actual.</div>';
+    document.getElementById('btnConfirmar').disabled = true;
+  } else {
+    document.getElementById('btnConfirmar').disabled = false;
+  }
+
+  var dist = document.getElementById('avisosBox');
+  var distHtml = '<div class="dist-grid">';
+  Object.keys(distribucion).sort(function(a,b){return a-b;}).forEach(function(p){
+    distHtml += '<div class="dist-item"><div class="pct">'+p+'%</div><div class="cnt">'+distribucion[p]+' clientes</div></div>';
+  });
+  distHtml += '</div>';
+  dist.innerHTML += distHtml;
+
+  var tabla = '<table><thead><tr><th>Clave</th><th>Cliente</th><th>Vendedor</th><th>Zona</th><th>%</th></tr></thead><tbody>';
+  clientes.slice(0,50).forEach(function(c){
+    tabla += '<tr><td>'+c.clave+'</td><td>'+c.nombre+'</td><td>'+c.vendedor+'</td><td>'+c.zona+'</td><td><span class="badge-pct">'+c.pct+'%</span></td></tr>';
+  });
+  tabla += '</tbody></table>';
+  if(clientes.length>50) tabla += '<div style="padding:8px 10px;font-size:11px;color:#94a3b8;">…y '+(clientes.length-50)+' más</div>';
+  document.getElementById('tablaPreview').innerHTML = tabla;
+}
+
+function cancelarCarga(){
+  datosProcesados = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('tarjetaPreview').style.display = 'none';
+  document.getElementById('tarjetaSubir').style.display = '';
+}
+
+function confirmarCarga(){
+  if(!datosProcesados || !datosProcesados.length){ toast('No hay datos para guardar','err'); return; }
+  var btn = document.getElementById('btnConfirmar');
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+
+  var tabla = {};
+  datosProcesados.forEach(function(c){
+    tabla[c.clave] = { pct: c.pct, nombre: c.nombre, vendedor: c.vendedor, zona: c.zona, codigo: c.codigo };
+  });
+
+  // .set() en la raíz REEMPLAZA todo — así nunca queda un descuento viejo mezclado
+  db.ref('descuentosClientes').set(tabla).then(function(){
+    db.ref('descuentosClientesMeta').set({ actualizadoTs: Date.now(), totalClientes: datosProcesados.length });
+    toast('✅ Tabla de descuentos actualizada — '+datosProcesados.length+' clientes','ok');
+    cancelarCarga();
+    cargarTablaActual();
+  }).catch(function(e){
+    toast('Error al guardar: '+e.message,'err');
+    btn.disabled = false; btn.textContent = '✅ Reemplazar tabla de descuentos';
+  });
+}
+
+function cargarTablaActual(){
+  var box = document.getElementById('actualBox');
+  db.ref('descuentosClientesMeta').once('value').then(function(snap){
+    var meta = snap.val();
+    if(!meta){ box.innerHTML = '<div class="aviso warn">Todavía no se ha subido ninguna tabla de descuentos.</div>'; return; }
+    var fecha = new Date(meta.actualizadoTs).toLocaleString('es-MX');
+    box.innerHTML = '<div class="resumen-row"><span class="l">Última actualización</span><span class="v">'+fecha+'</span></div>'+
+                     '<div class="resumen-row"><span class="l">Clientes en la tabla</span><span class="v">'+meta.totalClientes+'</span></div>';
+  });
+}
+cargarTablaActual();
+</script>
+</body>
+</html>
