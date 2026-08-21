@@ -148,6 +148,7 @@ input[type=file]{display:none}
   <div class="brand">FERRE<span>GAMA</span></div>
   <div style="font-size:12px;color:rgba(255,255,255,0.45)">Módulo de Planillas · Entrega de Documentos</div>
   <div class="tb-right">
+    <button id="btnBorrarPruebas" onclick="borrarTodasLasPruebas()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="u-chip" id="uChip">👤 Seleccionar</div>
   </div>
@@ -206,6 +207,28 @@ firebase.initializeApp({
   appId:"1:91698273557:web:158b43ac5129b2c0849d1c"
 });
 var db = firebase.database();
+
+// ══════════════════════════════════════════════════════════
+// ⚠️ BLOQUE TEMPORAL — SOLO PARA FASE DE PRUEBAS ⚠️
+// Borra TODO lo que haya en "planillas" de este Firebase (agrosin-cxc-sistema).
+// Quitar este bloque completo (y el botón en el HTML) antes de usar el sistema en real.
+// ══════════════════════════════════════════════════════════
+function borrarTodasLasPruebas(){
+  var paso1 = confirm('⚠️ Esto va a borrar TODAS las planillas de prueba de este sistema (agrosin-cxc-sistema).\n\nNo afecta el sistema viejo ni el piloto — solo este.\n\n¿Continuar?');
+  if(!paso1) return;
+  var paso2 = prompt('Para confirmar, escribe BORRAR (en mayúsculas):');
+  if(paso2 !== 'BORRAR'){ toast('Cancelado — no se borró nada','warn'); return; }
+  db.ref('planillas').remove().then(function(){
+    toast('✅ Todas las pruebas fueron borradas','ok');
+    setTimeout(function(){ location.reload(); }, 1200);
+  }).catch(function(e){
+    console.error(e);
+    toast('Error al borrar: '+e.message,'err');
+  });
+}
+// ══════════════════════════════════════════════════════════
+// FIN DEL BLOQUE TEMPORAL
+// ══════════════════════════════════════════════════════════
 // Login invisible — necesario porque las reglas nuevas piden estar identificado.
 // No pide nada a Lupe/Cari/etc, sucede solo al abrir la página.
 firebase.auth().signInAnonymously().catch(function(e){ console.error('Error de acceso:', e); });
