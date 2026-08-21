@@ -727,6 +727,10 @@ function vistaSelVendedor(data){
 }
 
 // ── CELDA EDITABLE (revisión antes de activar) ───────────
+// Mismas reglas que se usan al activar, para avisar de inmediato mientras se escribe
+var RE_FOLIO_UI = /^[A-Za-z]{1,4}\d{4,8}$/;
+var RE_FECHA_UI = /^\d{2}\/\d{2}\/\d{4}$/;
+
 function campoEditable(f, campo, tipo, i, data){
   var wrap = document.createElement('div');
   wrap.className = 'td';
@@ -736,7 +740,7 @@ function campoEditable(f, campo, tipo, i, data){
   inp.style.cssText = 'width:100%;border:1px solid transparent;background:transparent;font-family:inherit;font-size:12px;padding:4px 6px;border-radius:6px;color:inherit';
   inp.addEventListener('focus', function(){ inp.style.borderColor = 'var(--ora)'; inp.style.background='#fff'; });
   inp.addEventListener('blur', function(){
-    inp.style.borderColor = 'transparent'; inp.style.background='transparent';
+    inp.style.background='transparent';
     if(tipo==='number'){
       var v = parseFloat(String(inp.value).replace(/,/g,''));
       f[campo] = isNaN(v) ? 0 : v;
@@ -744,6 +748,14 @@ function campoEditable(f, campo, tipo, i, data){
     } else {
       f[campo] = inp.value.trim();
     }
+    // Validación visual: borde rojo si el formato no se ve correcto
+    var valido = true;
+    if(campo==='folio' && f.folio) valido = RE_FOLIO_UI.test(f.folio);
+    if(campo==='nombre' && f.nombre) valido = nombreSeVeValido(f.nombre);
+    if(campo==='vencimiento' && f.vencimiento) valido = RE_FECHA_UI.test(f.vencimiento);
+    inp.style.borderColor = valido ? 'transparent' : '#dc2626';
+    inp.style.background = valido ? 'transparent' : '#FEF2F2';
+    inp.title = valido ? '' : 'Este dato no se ve correcto — revísalo antes de activar';
     if(campo==='saldo'||campo==='total') recalcResumen(data);
   });
   wrap.appendChild(inp);
@@ -869,16 +881,29 @@ function vistaRevision(data){
 }
 
 // ── ACTIVAR ───────────────────────────────────────────────
+function nombreSeVeValido(nombre){
+  if(!nombre) return false;
+  var n = String(nombre).trim();
+  var tieneEspacio = n.indexOf(' ') > 0;           // al menos 2 palabras (nombre + apellido)
+  var tieneVocal = /[aeiouáéíóúAEIOUÁÉÍÓÚ]/.test(n); // una palabra real tiene vocales
+  return tieneEspacio && tieneVocal;
+}
+
 function activar(){
   if(!G.pdfData||!G.pdfData.facturas.length){ toast('Sin facturas','err'); return; }
 
   var data = G.pdfData;
-  // Validar antes de guardar: sin folio vacío, sin nombre vacío, sin folios repetidos
+  // Validar antes de guardar: formato correcto, sin vacíos, sin folios repetidos
+  var RE_FOLIO = /^[A-Za-z]{1,4}\d{4,8}$/;           // ej: AG0044941, AGR12345, FVB123456
+  var RE_FECHA = /^\d{2}\/\d{2}\/\d{4}$/;              // ej: 16/06/2026
   var vistos = {};
   for(var i=0;i<data.facturas.length;i++){
     var f = data.facturas[i];
     if(!f.folio || !String(f.folio).trim()){ toast('Falta el folio en la fila '+(i+1)+' — complétalo antes de activar','err'); return; }
+    if(!RE_FOLIO.test(String(f.folio).trim())){ toast('El folio "'+f.folio+'" no tiene un formato válido (ej. AG0044941) — revísalo','err'); return; }
     if(!f.nombre || !String(f.nombre).trim()){ toast('Falta el nombre del cliente en la factura '+f.folio,'err'); return; }
+    if(!nombreSeVeValido(f.nombre)){ toast('El nombre "'+f.nombre+'" no parece un nombre válido en la factura '+f.folio,'err'); return; }
+    if(f.vencimiento && !RE_FECHA.test(String(f.vencimiento).trim())){ toast('La fecha de vencimiento "'+f.vencimiento+'" no tiene formato válido (ej. 16/06/2026) en la factura '+f.folio,'err'); return; }
     if(vistos[f.folio]){ toast('El folio '+f.folio+' está repetido — corrígelo antes de activar','err'); return; }
     vistos[f.folio] = true;
   }
