@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferregama · Planillas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--ora:#F15A24;--mar:#07101F;--ver:#15803d;--roj:#dc2626;--ama:#d97706;--gri:#64748b;--bor:#E2E8F0;--fon:#F4F5F7;--bla:#fff;--tex:#07101F}
+body{font-family:'Montserrat',sans-serif;background:var(--fon);min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--mar);height:52px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.brand{color:var(--ora);font-size:17px;font-weight:800;letter-spacing:1.5px}
+.brand span{color:#fff}
+.tb-right{display:flex;align-items:center;gap:14px}
+.conn{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.5)}
+.cdot{width:7px;height:7px;border-radius:50%;background:#86efac;animation:pp 2s ease-in-out infinite}
+.cdot.off{background:#fca5a5;animation:none}
+@keyframes pp{0%,100%{opacity:1}50%{opacity:.3}}
+.u-chip{background:rgba(255,255,255,0.1);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;border:0.5px solid rgba(255,255,255,0.15)}
+.layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:240px;background:var(--bla);border-right:0.5px solid var(--bor);overflow-y:auto;flex-shrink:0;padding:20px 14px}
+.sb-title{font-size:10px;font-weight:700;color:var(--gri);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
+.sb-user{display:flex;flex-direction:column;gap:5px;margin-bottom:20px}
+.su{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1.5px solid transparent;user-select:none;transition:all .15s}
+.su:hover{background:var(--fon)}
+.su.act{background:#FFF7ED;border-color:var(--ora)}
+.su-av{width:36px;height:36px;border-radius:50%;background:var(--fon);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--gri);flex-shrink:0;transition:all .15s}
+.su.act .su-av{background:var(--ora);color:#fff}
+.su-name{font-size:13px;font-weight:700;color:var(--tex)}
+.su-zona{font-size:10px;color:var(--gri)}
+.sb-divider{border:none;border-top:0.5px solid var(--bor);margin:6px 0 14px}
+.sbs-row{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:0.5px solid var(--fon)}
+.sbs-row:last-child{border-bottom:none}
+.sbs-l{font-size:11px;color:var(--gri)}
+.sbs-v{font-size:12px;font-weight:700;color:var(--tex)}
+.sbs-v.ora{color:var(--ora)}
+.main{flex:1;overflow-y:auto;padding:28px 32px}
+.empty{text-align:center;padding:80px 20px;color:var(--gri)}
+.empty-icon{font-size:52px;margin-bottom:14px}
+.empty-title{font-size:18px;font-weight:700;color:var(--tex);margin-bottom:6px}
+.empty-sub{font-size:13px}
+.mh{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap}
+.mh-title{font-size:24px;font-weight:800;color:var(--tex)}
+.mh-sub{font-size:13px;color:var(--gri);margin-top:3px}
+.mh-btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn-ora{display:inline-flex;align-items:center;gap:7px;padding:11px 20px;background:var(--ora);color:#fff;border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-ora:hover{background:#d94d1a}
+.btn-ora:disabled{background:#94a3b8;cursor:default}
+.btn-sec{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;background:transparent;color:var(--gri);border:1.5px solid var(--bor);border-radius:10px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-sec:hover{background:var(--fon)}
+.tabs{display:flex;border-bottom:0.5px solid var(--bor);margin-bottom:24px}
+.tab{padding:10px 20px;font-size:13px;font-weight:600;color:var(--gri);cursor:pointer;border-bottom:2.5px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:'Montserrat',sans-serif}
+.tab.act{color:var(--ora);border-bottom-color:var(--ora)}
+.tab.azul{color:#1D4ED8}
+.tab.azul.act{color:#1D4ED8;border-bottom-color:#1D4ED8}
+.tc{display:none}
+.tc.act{display:block}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.pc{background:var(--bla);border-radius:12px;border:0.5px solid var(--bor);overflow:hidden}
+.pc:hover{box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.pc-head{background:var(--mar);padding:13px 16px;display:flex;justify-content:space-between;align-items:flex-start}
+.pc-vend{font-size:14px;font-weight:700;color:#fff}
+.pc-hoja{font-size:10px;color:rgba(255,255,255,0.4);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.pc-est{font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700}
+.pc-est.activa{background:rgba(253,186,116,0.2);color:#FCD34D}
+.pc-est.cerrada{background:rgba(134,239,172,0.2);color:#86EFAC}
+.pc-body{padding:14px 16px}
+.pc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.pcs{background:var(--fon);border-radius:8px;padding:10px;text-align:center}
+.pcs-v{font-size:18px;font-weight:800;color:var(--tex)}
+.pcs-v.ora{color:var(--ora)}
+.pcs-l{font-size:9px;color:var(--gri);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.pc-bar{height:4px;background:var(--fon);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.pc-bar-fill{height:100%;background:var(--ora);border-radius:10px}
+.pc-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.pc-cargada{font-size:11px;color:var(--gri)}
+.pc-btns{display:flex;gap:5px;flex-wrap:wrap}
+.btn-card{padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;border:1px solid}
+.btn-ver-c{background:var(--fon);border-color:var(--bor);color:var(--tex)}
+.btn-xls-c{background:#217346;border-color:#217346;color:#fff}
+.btn-cerrar-c{background:#EFF6FF;border-color:#BFDBFE;color:#1D4ED8}
+.btn-borrar-c{background:#FEF2F2;border-color:#FECACA;color:var(--roj)}
+.tbl{background:var(--bla);border-radius:12px;border:0.5px solid var(--bor);overflow:hidden}
+.tbl-head{display:grid;padding:9px 16px;background:var(--mar);gap:8px}
+.th{font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.8px}
+.tbl-row{display:grid;padding:10px 16px;gap:8px;border-bottom:0.5px solid var(--fon);align-items:center}
+.tbl-row:last-child{border-bottom:none}
+.tbl-row:hover{background:#FFFBF8}
+.td{font-size:12px;color:var(--tex)}
+.td.b{font-weight:700}
+.td.g{color:var(--gri)}
+.tdg{background:var(--fon);border-radius:8px;padding:10px;text-align:center}
+.tdg-v{font-size:18px;font-weight:800;color:var(--tex)}
+.tdg-l{font-size:9px;color:var(--gri);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.upload-zone{border:2.5px dashed var(--bor);border-radius:14px;padding:52px 32px;text-align:center;cursor:pointer;background:var(--bla);margin-bottom:20px}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--ora);background:#FFF7ED}
+.proc{background:var(--mar);border-radius:14px;padding:36px;text-align:center;color:#fff;margin-bottom:20px}
+.proc-sp{font-size:44px;margin-bottom:14px;animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.proc-bar{height:6px;background:rgba(255,255,255,0.15);border-radius:10px;overflow:hidden;max-width:400px;margin:8px auto 0}
+.proc-fill{height:100%;background:var(--ora);border-radius:10px;transition:width .5s ease}
+.res-banner{background:var(--mar);border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.rb-vend{font-size:20px;font-weight:800;color:var(--ora)}
+.rb-hoja{font-size:12px;color:rgba(255,255,255,0.4);margin-top:3px}
+.rb-stats{display:flex;gap:24px}
+.rb-s{text-align:center}
+.rb-sv{font-size:22px;font-weight:800;color:#fff}
+.rb-sl{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.bdg{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.bdg-r{background:#FEE2E2;color:#991B1B}
+.bdg-a{background:#FEF3C7;color:#92400E}
+.bdg-v{background:#DCFCE7;color:#166534}
+.vend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
+.vsb{background:var(--bla);border:1.5px solid var(--bor);border-radius:10px;padding:14px;text-align:center;cursor:pointer}
+.vsb:hover{border-color:var(--ora);background:#FFF7ED}
+.vsb-name{font-size:13px;font-weight:700;color:var(--tex)}
+.vsb-zona{font-size:10px;color:var(--gri);margin-top:3px}
+.modal-bg{position:fixed;inset:0;background:rgba(7,16,31,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--bla);border-radius:16px;width:100%;max-width:720px;max-height:88vh;overflow-y:auto}
+.modal-head{background:var(--mar);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:700;color:#fff}
+.modal-close{background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:16px;width:30px;height:30px;border-radius:7px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.modal-body{padding:22px}
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:9999}
+.toast{background:var(--mar);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transform:translateX(20px);transition:all .3s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.ok{background:var(--ver)}
+.toast.err{background:var(--roj)}
+.toast.warn{background:var(--ama)}
+input[type=file]{display:none}
+.sec-lbl{font-size:11px;font-weight:700;color:var(--gri);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.hist-card{background:var(--bla);border-radius:10px;border:0.5px solid var(--bor);margin-bottom:8px;overflow:hidden;opacity:0.85}
+.hist-head{background:#374151;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.hist-vend{font-size:13px;font-weight:700;color:#fff}
+.hist-hoja{font-size:9px;color:rgba(255,255,255,0.4);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.hist-body{padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.hist-info{font-size:11px;color:var(--gri)}
+.hist-info strong{color:var(--tex);display:block;margin-bottom:2px}
+.warn-box{background:#FEF3C7;border-radius:8px;padding:8px 12px;font-size:10px;color:#92400E;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">FERRE<span>GAMA</span></div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.45)">Módulo de Planillas · Entrega de Documentos</div>
+  <div class="tb-right">
+    <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
+    <div class="u-chip" id="uChip">👤 Seleccionar</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sb-title">Equipo de entrega</div>
+    <div class="sb-user" id="sbUsers">
+      <div class="su" id="su-LUPE"><div class="su-av">LU</div><div><div class="su-name">Lupe</div><div class="su-zona">CDMX</div></div></div>
+      <div class="su" id="su-CARI"><div class="su-av">CA</div><div><div class="su-name">Cari</div><div class="su-zona">CDMX</div></div></div>
+      <div class="su" id="su-KAREN"><div class="su-av">KA</div><div><div class="su-name">Karen</div><div class="su-zona">Morelos</div></div></div>
+      <div class="su" id="su-JENNIFER"><div class="su-av">JE</div><div><div class="su-name">Jennifer</div><div class="su-zona">Morelos</div></div></div>
+      <div class="su" id="su-NANCY"><div class="su-av">NA</div><div><div class="su-name">Nancy</div><div class="su-zona">Puebla</div></div></div>
+      <div class="su" id="su-SAMANTA"><div class="su-av">SA</div><div><div class="su-name">Samanta</div><div class="su-zona">Puebla</div></div></div>
+    </div>
+    <hr class="sb-divider">
+    <div id="sbStats"><div style="font-size:12px;color:var(--gri);padding:8px 4px">Selecciona tu nombre</div></div>
+  </div>
+
+  <div class="main" id="main">
+    <div class="empty">
+      <div class="empty-icon">👋</div>
+      <div class="empty-title">Bienvenida al módulo de planillas</div>
+      <div class="empty-sub">Selecciona tu nombre en el panel izquierdo para comenzar</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDet" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTit">Detalle</div>
+      <button class="modal-close" onclick="document.getElementById('modalDet').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body" id="modalBod"></div>
+  </div>
+</div>
+
+<div class="toast-wrap"><div class="toast" id="toast"></div></div>
+<input type="file" id="inputPDF" accept="application/pdf" onchange="onPDF(this)">
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+firebase.initializeApp({
+  apiKey:"AIzaSyBxWhvKsx4DL35wKxine4Av7aVM1XxetgA",
+  authDomain:"agrosin-cxc-sistema.firebaseapp.com",
+  databaseURL:"https://agrosin-cxc-sistema-default-rtdb.firebaseio.com",
+  projectId:"agrosin-cxc-sistema",
+  storageBucket:"agrosin-cxc-sistema.firebasestorage.app",
+  messagingSenderId:"91698273557",
+  appId:"1:91698273557:web:158b43ac5129b2c0849d1c"
+});
+var db = firebase.database();
+// Login invisible — necesario porque las reglas nuevas piden estar identificado.
+// No pide nada a Lupe/Cari/etc, sucede solo al abrir la página.
+firebase.auth().signInAnonymously().catch(function(e){ console.error('Error de acceso:', e); });
+
+// ── ESTADO ──────────────────────────────────────────────
+var G = { user:'', zona:'', pdfData:null };
+
+// ── CATÁLOGOS ────────────────────────────────────────────
+var ZONAS = {
+  CDMX:["ABRAHAM","ALFREDO","ANTONIO","CARLOS RONQUILLO","CASAUBON","CUAUHTEMOC","DANIEL M","ELVIRA","ESPERANZA","FELIX","FERNANDO GOMEZ","GERARDO HERNANDEZ","ISRAEL ODIN","JOSE LABASTIDA","JOSE RAMOS","JUAN OCAÑA","LUIS VENTURA","MANUEL TORRES","OLGA","OLGA ORTIZ","PATY GARCIA","RAYMUNDO LOPEZ","RICARDO BARRERA","ROBERTO","RODRIGO GONZALEZ","ROXANA"],
+  MORELOS:["DAVID VEGA","EMMANUEL","ENRIQUE","ENRIQUE ACAP","EVA JOAQUIN","IRMA HDZ","ISRAEL","JOSUE","JUAN CARLOS","MARTIN REYES","RICARDO FIGUEROA","ROBERTO HDEZ","ULISES","VICTOR HUGO"],
+  PUEBLA:["ALBERTO GARCIA","EMILIO","JORGE","JOSE HERNANDEZ","MARCO ANTONIO","RICARDO HDZ J","RICARDO PEREZ","ROSENDO"]
+};
+var USUARIOS = {
+  LUPE:'CDMX', CARI:'CDMX', KAREN:'MORELOS',
+  JENNIFER:'MORELOS', NANCY:'PUEBLA', SAMANTA:'PUEBLA'
+};
+
+// ── HELPERS ──────────────────────────────────────────────
+function fmt(n){ return (+n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function key(v){ return v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase(); }
+function getZona(v){ for(var z in ZONAS){ if(ZONAS[z].indexOf(v)>=0) return z; } return G.zona; }
+function el(id){ return document.getElementById(id); }
+
+// ── CONEXIÓN ─────────────────────────────────────────────
+db.ref('.info/connected').on('value',function(s){
+  var ok=s.val()===true;
+  el('cdot').className='cdot'+(ok?'':' off');
+  el('clbl').textContent=ok?'En línea ✓':'Sin internet ✗';
+});
+
+// ── INICIALIZAR SIDEBAR CON EVENT LISTENERS ──────────────
+(function initSidebar(){
+  var datos = [
+    {id:'su-LUPE',  nombre:'LUPE',     zona:'CDMX'},
+    {id:'su-CARI',  nombre:'CARI',     zona:'CDMX'},
+    {id:'su-KAREN', nombre:'KAREN',    zona:'MORELOS'},
+    {id:'su-JENNIFER',nombre:'JENNIFER',zona:'MORELOS'},
+    {id:'su-NANCY', nombre:'NANCY',    zona:'PUEBLA'},
+    {id:'su-SAMANTA',nombre:'SAMANTA', zona:'PUEBLA'}
+  ];
+  datos.forEach(function(d){
+    var elem = el(d.id);
+    if(!elem) return;
+    elem.addEventListener('click', function(){
+      selUser(d.nombre, d.zona, elem);
+    });
+  });
+})();
+
+// ── SELECCIONAR USUARIO ───────────────────────────────────
+function selUser(nombre, zona, elem){
+  document.querySelectorAll('.su').forEach(function(b){ b.classList.remove('act'); });
+  elem.classList.add('act');
+  G.user = nombre;
+  G.zona = zona;
+  el('uChip').textContent = (zona==='CDMX'?'🏙':zona==='MORELOS'?'🌿':'⛪')+' '+nombre;
+  cargarSidebar();
+  cargarMain();
+}
+
+// ── SIDEBAR STATS ─────────────────────────────────────────
+function cargarSidebar(){
+  var vends = ZONAS[G.zona]||[];
+  el('sbStats').innerHTML =
+    '<div class="sb-title">Zona '+G.zona+'</div>'+
+    '<div class="sbs-row"><span class="sbs-l">Vendedores</span><span class="sbs-v">'+vends.length+'</span></div>'+
+    '<div class="sbs-row"><span class="sbs-l">Con planilla activa</span><span class="sbs-v ora" id="sbActivas">…</span></div>'+
+    '<div class="sbs-row"><span class="sbs-l">Sin planilla</span><span class="sbs-v" id="sbSin">…</span></div>';
+  var count=0, done=0;
+  vends.forEach(function(v){
+    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(s){
+      var d=s.val();
+      if(d){ var h=Object.values(d)[0]; if(h&&h.estado==='activa') count++; }
+      done++;
+      if(done===vends.length){
+        var a=el('sbActivas'), b=el('sbSin');
+        if(a) a.textContent=count;
+        if(b) b.textContent=vends.length-count;
+      }
+    });
+  });
+}
+
+// ── CARGAR MAIN ───────────────────────────────────────────
+function cargarMain(){
+  el('main').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Cargando planillas…</div></div>';
+  var vends=ZONAS[G.zona]||[];
+  var results=[], done=0;
+  vends.forEach(function(v){
+    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(s){
+      var d=s.val();
+      results.push({ vendor:v, hoja:d?Object.values(d)[0]:null, hojaKey:d?Object.keys(d)[0]:null });
+      done++;
+      if(done===vends.length) renderMain(results);
+    }).catch(function(){ done++; results.push({vendor:v,hoja:null}); if(done===vends.length) renderMain(results); });
+  });
+}
+
+// ── RENDER MAIN ───────────────────────────────────────────
+function renderMain(results){
+  var activas = results.filter(function(r){ return r.hoja&&r.hoja.estado==='activa'; });
+  var sin     = results.filter(function(r){ return !r.hoja||r.hoja.estado!=='activa'; });
+
+  var main = el('main');
+
+  // HEADER
+  var header = document.createElement('div');
+  header.className = 'mh';
+  header.innerHTML =
+    '<div><div class="mh-title">Zona '+G.zona+'</div>'+
+    '<div class="mh-sub">'+results.length+' vendedores · '+activas.length+' con planilla activa</div></div>';
+  var btnNueva = document.createElement('button');
+  btnNueva.className = 'btn-ora';
+  btnNueva.textContent = '📄 Cargar nueva planilla';
+  btnNueva.addEventListener('click', function(){ vistaUpload(); });
+  header.appendChild(btnNueva);
+
+  // TABS
+  var tabsDiv = document.createElement('div');
+  tabsDiv.className = 'tabs';
+  var tabData = [
+    {id:'tc-act', label:'Planillas activas ('+activas.length+')', cls:''},
+    {id:'tc-sin', label:'Sin planilla ('+sin.length+')', cls:''},
+    {id:'tc-hist', label:'Historial', cls:'azul'}
+  ];
+  tabData.forEach(function(t, i){
+    var btn = document.createElement('button');
+    btn.className = 'tab'+(i===0?' act':'')+(t.cls?' '+t.cls:'');
+    btn.textContent = t.label;
+    btn.addEventListener('click', (function(tid, b){ return function(){ setTab(tid, b); }; })(t.id, btn));
+    tabsDiv.appendChild(btn);
+  });
+
+  // TAB ACTIVAS
+  var tcAct = document.createElement('div');
+  tcAct.className = 'tc act';
+  tcAct.id = 'tc-act';
+  if(!activas.length){
+    tcAct.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Sin planillas activas</div><div class="empty-sub">Carga la primera planilla usando el botón de arriba</div></div>';
+  } else {
+    var grid = document.createElement('div');
+    grid.className = 'cards-grid';
+    activas.forEach(function(r){
+      grid.appendChild(buildCard(r, false));
+    });
+    tcAct.appendChild(grid);
+  }
+
+  // TAB SIN PLANILLA
+  var tcSin = document.createElement('div');
+  tcSin.className = 'tc';
+  tcSin.id = 'tc-sin';
+  var tbl = document.createElement('div');
+  tbl.className = 'tbl';
+  tbl.innerHTML = '<div class="tbl-head" style="grid-template-columns:1fr 100px 160px">'+
+    '<div class="th">Vendedor</div><div class="th">Zona</div><div class="th">Acción</div></div>';
+  sin.forEach(function(r){
+    var row = document.createElement('div');
+    row.className = 'tbl-row';
+    row.style.gridTemplateColumns = '1fr 100px 160px';
+    row.innerHTML = '<div class="td b">'+r.vendor+'</div><div class="td g">'+G.zona+'</div>';
+    var btnCargar = document.createElement('button');
+    btnCargar.className = 'btn-ora';
+    btnCargar.style.cssText = 'padding:6px 14px;font-size:12px';
+    btnCargar.textContent = '📄 Cargar planilla';
+    btnCargar.addEventListener('click', (function(vv){ return function(){ vistaUpload(vv); }; })(r.vendor));
+    var btnDiv = document.createElement('div');
+    btnDiv.appendChild(btnCargar);
+    row.appendChild(btnDiv);
+    tbl.appendChild(row);
+  });
+  tcSin.appendChild(tbl);
+
+  // TAB HISTORIAL
+  var tcHist = document.createElement('div');
+  tcHist.className = 'tc';
+  tcHist.id = 'tc-hist';
+  tcHist.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Cargando historial…</div></div>';
+
+  // ENSAMBLAR
+  main.innerHTML = '';
+  main.appendChild(header);
+  main.appendChild(tabsDiv);
+  main.appendChild(tcAct);
+  main.appendChild(tcSin);
+  main.appendChild(tcHist);
+
+  // Cargar historial en background
+  setTimeout(function(){ cargarHistorial(); }, 400);
+}
+
+// ── BUILD CARD ────────────────────────────────────────────
+function buildCard(r, esCerrada){
+  var h = r.hoja;
+  var total = h.totalFacturas||0;
+  var cob   = h.cobradas||0;
+  var pct   = total>0?Math.round(cob/total*100):0;
+  var saldo = 0;
+  if(h.facturas) Object.values(h.facturas).forEach(function(f){ saldo+=f.saldo||0; });
+  var card = document.createElement('div');
+  card.className = 'pc';
+  var headBg = esCerrada ? '#374151' : 'var(--mar)';
+  card.innerHTML =
+    '<div class="pc-head" style="background:'+headBg+'">'+
+      '<div><div class="pc-vend">'+r.vendor+'</div>'+
+      '<div class="pc-hoja">Hoja '+h.folio_hoja+' · '+h.fecha+'</div></div>'+
+      '<span class="pc-est '+(esCerrada?'cerrada':'activa')+'">'+(esCerrada?'Cerrada':'Activa')+'</span>'+
+    '</div>'+
+    '<div class="pc-body">'+
+      '<div class="pc-stats">'+
+        '<div class="pcs"><div class="pcs-v">'+total+'</div><div class="pcs-l">Facturas</div></div>'+
+        '<div class="pcs"><div class="pcs-v">'+cob+'</div><div class="pcs-l">Cobradas</div></div>'+
+        '<div class="pcs"><div class="pcs-v ora">$'+Math.round(saldo/1000)+'K</div><div class="pcs-l">Saldo</div></div>'+
+      '</div>'+
+      '<div class="pc-bar"><div class="pc-bar-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="pc-footer">'+
+        '<span class="pc-cargada">'+(esCerrada?'Cerrada':'Cargada')+' por '+h.cargadaPor+'</span>'+
+        '<div class="pc-btns" id="btns-'+key(r.vendor)+'-'+h.ts+'"></div>'+
+      '</div>'+
+    '</div>';
+
+  // Agregar botones con event listeners — sin onclick en HTML
+  setTimeout(function(){
+    var btnsDiv = document.getElementById('btns-'+key(r.vendor)+'-'+h.ts);
+    if(!btnsDiv) return;
+
+    // Btn Ver
+    var bVer = document.createElement('button');
+    bVer.className = 'btn-card btn-ver-c';
+    bVer.textContent = 'Ver';
+    bVer.addEventListener('click', function(){ verDetalle(r); });
+    btnsDiv.appendChild(bVer);
+
+    if(h.cargadaPor === G.user){
+      // Btn Excel
+      var bXls = document.createElement('button');
+      bXls.className = 'btn-card btn-xls-c';
+      bXls.textContent = '📊';
+      bXls.addEventListener('click', function(){ descargarPlanilla(r, 'excel'); });
+      btnsDiv.appendChild(bXls);
+
+      if(!esCerrada){
+        // Btn Cerrar
+        var bCerrar = document.createElement('button');
+        bCerrar.className = 'btn-card btn-cerrar-c';
+        bCerrar.textContent = '✓ Cerrar';
+        bCerrar.addEventListener('click', function(){ cerrarPlanilla(r); });
+        btnsDiv.appendChild(bCerrar);
+      }
+
+      // Btn Borrar
+      var bBorrar = document.createElement('button');
+      bBorrar.className = 'btn-card btn-borrar-c';
+      bBorrar.textContent = '🗑';
+      bBorrar.addEventListener('click', function(){ borrarPlanilla(r); });
+      btnsDiv.appendChild(bBorrar);
+    }
+  }, 50);
+
+  return card;
+}
+
+// ── CARGAR HISTORIAL ──────────────────────────────────────
+function cargarHistorial(){
+  var tcHist = el('tc-hist');
+  if(!tcHist) return;
+  var vends = ZONAS[G.zona]||[];
+  var cerradas = [], done = 0;
+  vends.forEach(function(v){
+    db.ref('planillas/'+G.zona+'/'+key(v)).once('value').then(function(snap){
+      var d = snap.val();
+      if(d){
+        Object.keys(d).forEach(function(k){
+          var h = d[k];
+          if(h && h.estado==='cerrada' && h.cargadaPor===G.user){
+            cerradas.push({vendor:v, hoja:h, hojaKey:k});
+          }
+        });
+      }
+      done++;
+      if(done===vends.length){
+        tcHist.innerHTML = '';
+        if(!cerradas.length){
+          tcHist.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Sin historial aún</div><div class="empty-sub">Las planillas cerradas aparecerán aquí</div></div>';
+          return;
+        }
+        cerradas.sort(function(a,b){ return (b.hoja.ts||0)-(a.hoja.ts||0); });
+        var lbl = document.createElement('div');
+        lbl.className = 'sec-lbl';
+        lbl.textContent = cerradas.length+' planilla(s) cerrada(s) — cargadas por ti';
+        tcHist.appendChild(lbl);
+        var grid = document.createElement('div');
+        grid.className = 'cards-grid';
+        cerradas.forEach(function(r){ grid.appendChild(buildCard(r, true)); });
+        tcHist.appendChild(grid);
+        var warn = document.createElement('div');
+        warn.className = 'warn-box';
+        warn.textContent = '⚠️ Las planillas borradas no se pueden recuperar. Los cobros registrados no se borran.';
+        tcHist.appendChild(warn);
+      }
+    });
+  });
+}
+
+// ── SET TAB ───────────────────────────────────────────────
+function setTab(id, el_btn){
+  document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('act'); });
+  document.querySelectorAll('.tc').forEach(function(t){ t.classList.remove('act'); });
+  el_btn.classList.add('act');
+  var tc = el(id);
+  if(tc) tc.classList.add('act');
+}
+
+// ── VISTA UPLOAD ──────────────────────────────────────────
+function vistaUpload(vendedor){
+  G.pdfData = null;
+  el('inputPDF').value = '';
+  var main = el('main');
+  main.innerHTML = '';
+
+  var header = document.createElement('div');
+  header.className = 'mh';
+  header.innerHTML = '<div><div class="mh-title">Cargar planilla</div><div class="mh-sub">Sube el PDF de la Hoja de entrega de documentos de Microsip</div></div>';
+  var btnReg = document.createElement('button');
+  btnReg.className = 'btn-sec';
+  btnReg.textContent = '← Regresar';
+  btnReg.addEventListener('click', cargarMain);
+  header.appendChild(btnReg);
+  main.appendChild(header);
+
+  if(vendedor){
+    var msg = document.createElement('div');
+    msg.style.cssText = 'background:#FFF7ED;border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:13px;font-weight:600;color:var(--ora)';
+    msg.textContent = '📋 Para: '+vendedor;
+    main.appendChild(msg);
+  }
+
+  var zone = document.createElement('div');
+  zone.id = 'uploadZone';
+  zone.className = 'upload-zone';
+  zone.innerHTML = '<div style="font-size:48px;margin-bottom:12px">📄</div>'+
+    '<div style="font-size:18px;font-weight:700;color:var(--tex);margin-bottom:6px">Arrastra el PDF aquí o haz clic para seleccionar</div>'+
+    '<div style="font-size:13px;color:var(--gri)">Hoja de entrega de documentos exportada desde Microsip</div>';
+  zone.addEventListener('click', function(){
+    el('inputPDF').value = '';  // Forzar reset para permitir mismo archivo
+    el('inputPDF').click();
+  });
+  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', function(){ zone.classList.remove('drag'); });
+  zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.classList.remove('drag');
+    var f = e.dataTransfer.files[0];
+    if(f&&f.type==='application/pdf') procesarPDF(f);
+    else toast('Solo se aceptan archivos PDF','err');
+  });
+  main.appendChild(zone);
+}
+
+function onPDF(input){
+  var f = input.files[0];
+  if(f) procesarPDF(f);
+}
+
+// ── PROCESAR PDF ──────────────────────────────────────────
+function procesarPDF(file){
+  var main = el('main');
+  main.innerHTML =
+    '<div class="mh"><div><div class="mh-title">Procesando…</div></div></div>'+
+    '<div class="proc">'+
+      '<div class="proc-sp">⚙️</div>'+
+      '<div style="font-size:17px;font-weight:700;margin-bottom:4px">Leyendo Hoja de entrega</div>'+
+      '<div style="font-size:12px;color:rgba(255,255,255,0.5)" id="pSub">Iniciando…</div>'+
+      '<div class="proc-bar"><div class="proc-fill" id="pFill" style="width:5%"></div></div>'+
+    '</div>';
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    setProceso('Analizando páginas…', 30);
+    pdfjsLib.getDocument({data:e.target.result}).promise.then(function(pdf){
+      setProceso('Procesando '+pdf.numPages+' página(s)…', 55);
+      var ps = [];
+      for(var i=1;i<=pdf.numPages;i++){
+        ps.push(pdf.getPage(i).then(function(p){ return p.getTextContent().then(function(tc){ return tc.items.map(function(it){ return it.str; }).join(' '); }); }));
+      }
+      return Promise.all(ps);
+    }).then(function(textos){
+      setProceso('Identificando facturas…', 80);
+      var res = extraerFacturas(textos.join(' '));
+      setProceso('Listo — '+res.facturas.length+' facturas', 100);
+      G.pdfData = res;
+      setTimeout(function(){
+        if(!res.vendedor) vistaSelVendedor(res);
+        else vistaRevision(res);
+      }, 600);
+    }).catch(function(err){ console.error(err); toast('Error al leer el PDF','err'); cargarMain(); });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setProceso(txt, pct){
+  var s = el('pSub'), f = el('pFill');
+  if(s) s.textContent = txt;
+  if(f) f.style.width = pct+'%';
+}
+
+// ── EXTRAER FACTURAS (44/44 verificado con pdfjs) ────────
+function extraerFacturas(texto){
+  var vendedor='', folio='', fecha='';
+
+
+  // Limpiar marcas de página del PDF
+  texto = texto.replace(/\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}[^A-Z]+\d+\s*/gi, ' ');
+  // Normalizar espacios (pdfjs retorna texto como una línea larga)
+  texto = texto.replace(/\s+/g, ' ');
+
+  // Extraer vendedor — buscar directamente en catálogo
+  var idxCobCheck = texto.indexOf('Cobrador');
+  if(idxCobCheck < 0) idxCobCheck = texto.indexOf('cobrador');
+  if(idxCobCheck < 0) idxCobCheck = 0;
+  var fragmentoCob = texto.substring(idxCobCheck, idxCobCheck + 60);
+  for(var zz in ZONAS){
+    for(var vi=0; vi<ZONAS[zz].length; vi++){
+      var vnom = ZONAS[zz][vi];
+      if(fragmentoCob.indexOf(vnom) >= 0){
+        vendedor = vnom;
+        break;
+      }
+    }
+    if(vendedor) break;
+  }
+  var fm = texto.match(/Folio:\s*(\d+)/i);
+  if(fm) folio = fm[1];
+  var dm = texto.match(/Fecha:\s*(\d{2}\/\d{2}\/\d{4})/i);
+  if(dm) fecha = dm[1];
+
+  // Patrón global — funciona con texto pdfjs en una sola línea
+  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8})\s+(\d{4,5})\s+([A-ZA-Za-z0-9\u00C0-\u00FF\s\(\)\.]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
+  var facturas = [], vistos = {}, m;
+
+  while((m = PFACT.exec(texto)) !== null){
+    var fol = m[1];
+    if(vistos[fol]) continue;
+    vistos[fol] = true;
+    // Limpiar nombre: quitar números iniciales (clave pegada)
+    var nombre = m[3].trim().replace(/^\d+\s+/, '').trim();
+    facturas.push({
+      folio: fol, clave: m[2], nombre: nombre.substring(0,55),
+      fecha: m[4], vencimiento: m[5], dias: parseInt(m[6]),
+      total: parseFloat(m[7].replace(/,/g,'')),
+      saldo: parseFloat(m[8].replace(/,/g,'')),
+      estado: 'pendiente'
+    });
+  }
+
+  // Aviso de seguridad: contar CUALQUIER folio que aparezca en el texto
+  // (aunque no se haya podido leer completo), para avisar si algo se quedó fuera.
+  var PFOLIO_SIMPLE = /\b(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8})\b/g;
+  var todosFolios = {}, mf;
+  while((mf = PFOLIO_SIMPLE.exec(texto)) !== null){ todosFolios[mf[1]] = true; }
+  var folioHojaNum = folio; // el "AGR..." de la cabecera no cuenta como factura, se excluye si aparece
+  var totalFoliosDetectados = Object.keys(todosFolios).length;
+  var faltantes = totalFoliosDetectados - facturas.length;
+
+  return {vendedor:vendedor, folioHoja:folio, fecha:fecha, facturas:facturas, foliosDetectados:totalFoliosDetectados, posiblesFaltantes: faltantes>0?faltantes:0};
+}
+
+// ── SELECTOR MANUAL ───────────────────────────────────────
+function vistaSelVendedor(data){
+  var main = el('main');
+  main.innerHTML = '';
+  var h = document.createElement('div');
+  h.className = 'mh';
+  h.innerHTML = '<div><div class="mh-title">Seleccionar vendedor</div><div class="mh-sub">No se detectó automáticamente</div></div>';
+  var btnR = document.createElement('button');
+  btnR.className = 'btn-sec'; btnR.textContent = '← Regresar';
+  btnR.addEventListener('click', vistaUpload);
+  h.appendChild(btnR);
+  main.appendChild(h);
+
+  var warn = document.createElement('div');
+  warn.style.cssText = 'background:#FEF3C7;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400E';
+  warn.innerHTML = '⚠️ Se extrajeron <strong>'+data.facturas.length+' facturas</strong> — selecciona el cobrador manualmente:';
+  main.appendChild(warn);
+
+  var grid = document.createElement('div');
+  grid.className = 'vend-grid';
+  (ZONAS[G.zona]||[]).forEach(function(v){
+    var btn = document.createElement('div');
+    btn.className = 'vsb';
+    btn.innerHTML = '<div class="vsb-name">'+v+'</div><div class="vsb-zona">'+G.zona+'</div>';
+    btn.addEventListener('click', function(){ G.pdfData.vendedor = v; vistaRevision(G.pdfData); });
+    grid.appendChild(btn);
+  });
+  main.appendChild(grid);
+}
+
+// ── CELDA EDITABLE (revisión antes de activar) ───────────
+function campoEditable(f, campo, tipo, i, data){
+  var wrap = document.createElement('div');
+  wrap.className = 'td';
+  var inp = document.createElement('input');
+  inp.type = tipo;
+  inp.value = f[campo]===undefined||f[campo]===null ? '' : f[campo];
+  inp.style.cssText = 'width:100%;border:1px solid transparent;background:transparent;font-family:inherit;font-size:12px;padding:4px 6px;border-radius:6px;color:inherit';
+  inp.addEventListener('focus', function(){ inp.style.borderColor = 'var(--ora)'; inp.style.background='#fff'; });
+  inp.addEventListener('blur', function(){
+    inp.style.borderColor = 'transparent'; inp.style.background='transparent';
+    if(tipo==='number'){
+      var v = parseFloat(String(inp.value).replace(/,/g,''));
+      f[campo] = isNaN(v) ? 0 : v;
+      inp.value = f[campo];
+    } else {
+      f[campo] = inp.value.trim();
+    }
+    if(campo==='saldo'||campo==='total') recalcResumen(data);
+  });
+  wrap.appendChild(inp);
+  return wrap;
+}
+
+// ── VISTA REVISIÓN ────────────────────────────────────────
+function recalcResumen(data){
+  var saldo    = data.facturas.reduce(function(s,f){ return s+(f.saldo||0); },0);
+  var clientes = new Set(data.facturas.map(function(f){ return f.nombre; })).size;
+  var vencidas = data.facturas.filter(function(f){ return f.dias>0; }).length;
+  var b = el('rbStats');
+  if(b){
+    b.innerHTML =
+      '<div class="rb-s"><div class="rb-sv">'+data.facturas.length+'</div><div class="rb-sl">Facturas</div></div>'+
+      '<div class="rb-s"><div class="rb-sv">'+clientes+'</div><div class="rb-sl">Clientes</div></div>'+
+      '<div class="rb-s"><div class="rb-sv">'+vencidas+'</div><div class="rb-sl">Vencidas</div></div>'+
+      '<div class="rb-s"><div class="rb-sv" style="font-size:16px">$'+Math.round(saldo/1000)+'K</div><div class="rb-sl">Saldo</div></div>';
+  }
+}
+
+function vistaRevision(data){
+  var main = el('main');
+  main.innerHTML = '';
+
+  var h = document.createElement('div');
+  h.className = 'mh';
+  h.innerHTML = '<div><div class="mh-title">Revisar planilla</div><div class="mh-sub">Verifica y corrige antes de activar — toca cualquier dato para editarlo</div></div>';
+  var btnR = document.createElement('button');
+  btnR.className = 'btn-sec'; btnR.textContent = '← Regresar';
+  btnR.addEventListener('click', vistaUpload);
+  h.appendChild(btnR);
+  main.appendChild(h);
+
+  // Aviso si parece que quedaron facturas sin leer
+  if(data.posiblesFaltantes && data.posiblesFaltantes > 0){
+    var warn = document.createElement('div');
+    warn.style.cssText = 'background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#92400E';
+    warn.innerHTML = '⚠️ <strong>Revisa antes de activar:</strong> en el PDF se detectaron señales de '+data.posiblesFaltantes+' factura(s) más de las que se lograron leer completas ('+data.facturas.length+' leídas). Puede que el PDF tenga un formato distinto en algún renglón. Usa "➕ Agregar factura a mano" abajo si falta alguna.';
+    main.appendChild(warn);
+  }
+
+  var banner = document.createElement('div');
+  banner.className = 'res-banner';
+  banner.innerHTML =
+    '<div><div class="rb-vend">'+data.vendedor+'</div><div class="rb-hoja">Hoja '+data.folioHoja+' · '+data.fecha+'</div></div>'+
+    '<div class="rb-stats" id="rbStats"></div>';
+  main.appendChild(banner);
+  recalcResumen(data);
+
+  var tbl = document.createElement('div');
+  tbl.className = 'tbl';
+  tbl.id = 'tblRevision';
+  tbl.innerHTML =
+    '<div class="tbl-head" style="grid-template-columns:120px 50px 1fr 100px 60px 90px 90px 40px">'+
+      '<div class="th">Folio</div><div class="th">Clave</div><div class="th">Nombre</div>'+
+      '<div class="th">Vencimiento</div><div class="th">Atraso</div><div class="th">Total</div><div class="th">Saldo</div><div class="th"></div>'+
+    '</div>';
+  main.appendChild(tbl);
+
+  function pintarFilas(){
+    var body = tbl.querySelectorAll('.tbl-row');
+    body.forEach(function(r){ r.remove(); });
+    data.facturas.forEach(function(f, i){
+      var row = document.createElement('div');
+      row.className = 'tbl-row';
+      row.style.gridTemplateColumns = '120px 50px 1fr 100px 60px 90px 90px 40px';
+
+      var cFolio = campoEditable(f, 'folio', 'text', i, data);
+      var cClave = campoEditable(f, 'clave', 'text', i, data);
+      var cNombre = campoEditable(f, 'nombre', 'text', i, data);
+      var cVenc = campoEditable(f, 'vencimiento', 'text', i, data);
+      var cDias = campoEditable(f, 'dias', 'number', i, data);
+      var cTotal = campoEditable(f, 'total', 'number', i, data);
+      var cSaldo = campoEditable(f, 'saldo', 'number', i, data);
+
+      row.appendChild(cFolio); row.appendChild(cClave); row.appendChild(cNombre);
+      row.appendChild(cVenc); row.appendChild(cDias); row.appendChild(cTotal); row.appendChild(cSaldo);
+
+      var btnDel = document.createElement('button');
+      btnDel.textContent = '🗑';
+      btnDel.title = 'Quitar esta factura de la planilla';
+      btnDel.style.cssText = 'background:none;border:none;cursor:pointer;font-size:15px;color:var(--roj)';
+      btnDel.addEventListener('click', function(){
+        if(confirm('¿Quitar la factura '+f.folio+' de esta planilla?')){
+          data.facturas.splice(i,1);
+          pintarFilas();
+          recalcResumen(data);
+        }
+      });
+      row.appendChild(btnDel);
+      tbl.appendChild(row);
+    });
+  }
+  pintarFilas();
+
+  var btnAgregar = document.createElement('button');
+  btnAgregar.className = 'btn-sec';
+  btnAgregar.style.cssText = 'margin-top:10px;border-color:var(--ora);color:var(--ora)';
+  btnAgregar.textContent = '➕ Agregar factura a mano';
+  btnAgregar.addEventListener('click', function(){
+    data.facturas.push({folio:'', clave:'', nombre:'', fecha:data.fecha||'', vencimiento:'', dias:0, total:0, saldo:0, estado:'pendiente'});
+    pintarFilas();
+    recalcResumen(data);
+    toast('Factura agregada — llena los datos','ok');
+  });
+  main.appendChild(btnAgregar);
+
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:10px;margin-top:20px;flex-wrap:wrap';
+  var btnAct = document.createElement('button');
+  btnAct.id = 'btnAct';
+  btnAct.className = 'btn-ora';
+  btnAct.textContent = '✅ Activar planilla — '+data.vendedor+' verá sus facturas en la app';
+  btnAct.addEventListener('click', activar);
+  var btnOtro = document.createElement('button');
+  btnOtro.className = 'btn-sec';
+  btnOtro.textContent = 'Cargar otro PDF';
+  btnOtro.addEventListener('click', vistaUpload);
+  btnRow.appendChild(btnAct);
+  btnRow.appendChild(btnOtro);
+  main.appendChild(btnRow);
+}
+
+// ── ACTIVAR ───────────────────────────────────────────────
+function activar(){
+  if(!G.pdfData||!G.pdfData.facturas.length){ toast('Sin facturas','err'); return; }
+
+  var data = G.pdfData;
+  // Validar antes de guardar: sin folio vacío, sin nombre vacío, sin folios repetidos
+  var vistos = {};
+  for(var i=0;i<data.facturas.length;i++){
+    var f = data.facturas[i];
+    if(!f.folio || !String(f.folio).trim()){ toast('Falta el folio en la fila '+(i+1)+' — complétalo antes de activar','err'); return; }
+    if(!f.nombre || !String(f.nombre).trim()){ toast('Falta el nombre del cliente en la factura '+f.folio,'err'); return; }
+    if(vistos[f.folio]){ toast('El folio '+f.folio+' está repetido — corrígelo antes de activar','err'); return; }
+    vistos[f.folio] = true;
+  }
+
+  var btn = el('btnAct');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Activando…'; }
+
+  var vendedor = data.vendedor;
+  var zonaV = getZona(vendedor);
+  var k = key(vendedor);
+  var ts = Date.now();
+  var facts = {};
+  data.facturas.forEach(function(f, idx){ facts[f.folio] = {folio:f.folio,clave:f.clave,nombre:f.nombre,fecha:f.fecha,vencimiento:f.vencimiento,dias:f.dias,total:f.total,saldo:f.saldo,estado:'pendiente',idx:idx}; });
+
+  var planilla = {
+    vendedor:vendedor, folio_hoja:data.folioHoja, fecha:data.fecha,
+    ts:ts, estado:'activa', cargadaPor:G.user, zona:zonaV,
+    totalFacturas:data.facturas.length, cobradas:0, facturas:facts
+  };
+
+  db.ref('planillas/'+zonaV+'/'+k+'/'+ts).set(planilla).then(function(){
+    G.pdfData = null;
+    var saldo = Object.values(facts).reduce(function(s,f){ return s+(f.saldo||0); },0);
+    el('main').innerHTML =
+      '<div style="text-align:center;padding:60px 20px">'+
+        '<div style="font-size:64px;margin-bottom:16px">✅</div>'+
+        '<div style="font-size:26px;font-weight:800;color:var(--ver);margin-bottom:8px">Planilla activada</div>'+
+        '<div style="font-size:14px;color:var(--gri);margin-bottom:28px">'+vendedor+' ya puede ver sus facturas en la app</div>'+
+        '<div style="background:var(--mar);border-radius:14px;padding:18px 24px;max-width:420px;margin:0 auto 28px;text-align:left">'+
+          '<div style="font-size:17px;font-weight:800;color:var(--ora);margin-bottom:12px">'+vendedor+'</div>'+
+          '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:.5px solid rgba(255,255,255,.1)"><span style="font-size:12px;color:rgba(255,255,255,.5)">Hoja</span><span style="font-size:12px;font-weight:700;color:#fff">'+data.folioHoja+'</span></div>'+
+          '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:.5px solid rgba(255,255,255,.1)"><span style="font-size:12px;color:rgba(255,255,255,.5)">Facturas</span><span style="font-size:12px;font-weight:700;color:#fff">'+data.facturas.length+'</span></div>'+
+          '<div style="display:flex;justify-content:space-between;padding:7px 0"><span style="font-size:12px;color:rgba(255,255,255,.5)">Saldo total</span><span style="font-size:14px;font-weight:800;color:var(--ora)">$'+fmt(saldo)+'</span></div>'+
+        '</div>'+
+        '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap" id="exitoBtns"></div>'+
+      '</div>';
+    var eb = el('exitoBtns');
+    var b1 = document.createElement('button');
+    b1.className='btn-ora'; b1.textContent='📋 Ver planillas activas';
+    b1.addEventListener('click', cargarMain);
+    var b2 = document.createElement('button');
+    b2.className='btn-sec'; b2.style.cssText='border-color:var(--ora);color:var(--ora)';
+    b2.textContent='📄 Cargar otra planilla';
+    b2.addEventListener('click', vistaUpload);
+    eb.appendChild(b1); eb.appendChild(b2);
+    cargarSidebar();
+    toast('✅ Planilla activada correctamente','ok');
+  }).catch(function(e){ console.error(e); toast('Error al guardar','err'); if(btn){btn.disabled=false;btn.textContent='✅ Activar planilla';} });
+}
+
+// ── VER DETALLE ───────────────────────────────────────────
+function verDetalle(r){
+  var h = r.hoja;
+  var facts = h.facturas ? Object.values(h.facturas) : [];
+  facts.sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
+  el('modalTit').textContent = r.vendor+' · Hoja '+h.folio_hoja;
+  var saldo = facts.reduce(function(s,f){ return s+(f.saldo||0); },0);
+  var cobradas = facts.filter(function(f){ return f.estado==='cobrada'; }).length;
+  var html =
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">'+
+      '<div class="tdg"><div class="tdg-v">'+facts.length+'</div><div class="tdg-l">Facturas</div></div>'+
+      '<div class="tdg"><div class="tdg-v" style="color:var(--ver)">'+cobradas+'</div><div class="tdg-l">Cobradas</div></div>'+
+      '<div class="tdg"><div class="tdg-v ora">$'+Math.round(saldo/1000)+'K</div><div class="tdg-l">Saldo</div></div>'+
+    '</div>'+
+    '<div class="tbl">'+
+      '<div class="tbl-head" style="grid-template-columns:110px 1fr 90px 80px 70px">'+
+        '<div class="th">Folio</div><div class="th">Nombre</div><div class="th">Venc.</div><div class="th">Saldo</div><div class="th">Estado</div>'+
+      '</div>';
+  facts.forEach(function(f){
+    var est = f.estado==='cobrada'?'<span class="bdg bdg-v">Cobrado</span>':'<span class="bdg bdg-a">Pend.</span>';
+    html +=
+      '<div class="tbl-row" style="grid-template-columns:110px 1fr 90px 80px 70px">'+
+        '<div class="td" style="font-family:monospace;font-size:10px;color:var(--gri)">'+f.folio+'</div>'+
+        '<div class="td b" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.nombre+'</div>'+
+        '<div class="td g">'+f.vencimiento+'</div>'+
+        '<div class="td" style="color:var(--ora);font-weight:700">$'+fmt(f.saldo)+'</div>'+
+        '<div>'+est+'</div>'+
+      '</div>';
+  });
+  html += '</div>';
+  el('modalBod').innerHTML = html;
+  el('modalDet').style.display = 'flex';
+}
+
+// ── DESCARGAR PLANILLA ────────────────────────────────────
+function descargarPlanilla(r, formato){
+  var h = r.hoja;
+  if(h.cargadaPor && h.cargadaPor !== G.user){ toast('Esta planilla fue cargada por '+h.cargadaPor,'warn'); return; }
+  var facts = h.facturas ? Object.values(h.facturas) : [];
+  if(!facts.length){ toast('Sin facturas','warn'); return; }
+  // Ordenar por índice original del PDF
+  facts.sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
+  var rows = facts.map(function(f){
+    return {
+      'Hoja':h.folio_hoja, 'Cobrador':r.vendor, 'Folio':f.folio, 'Clave':f.clave||'',
+      'Nombre':f.nombre, 'Fecha Factura':f.fecha, 'Vencimiento':f.vencimiento,
+      'Atraso (días)':f.dias||0, 'Total Original':f.total||0, 'Saldo':f.saldo||0,
+      'Efectivo':f.tipo==='Efectivo'?(f.montoCobrado||0):0,
+      'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
+      'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
+      'Banco':f.banco||'', 'Tipo de Cobro':f.tipo||'', 'Estado':f.estado||'pendiente',
+      'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO', 'Observaciones':''
+    };
+  });
+  var nombre = 'Planilla_'+r.vendor+'_Hoja'+h.folio_hoja+'_'+h.fecha.replace(/\//g,'-');
+  if(formato==='excel'){
+    var ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:8},{wch:16},{wch:14},{wch:7},{wch:42},{wch:12},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, r.vendor);
+    XLSX.writeFile(wb, nombre+'.xlsx');
+    toast('✅ Excel descargado','ok');
+  } else {
+    var csv = [Object.keys(rows[0]).join(',')].concat(rows.map(function(row){ return Object.values(row).map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(','); }));
+    var blob = new Blob([csv.join('\n')],{type:'text/csv;charset=utf-8;'});
+    var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre+'.csv'; a.click();
+    toast('✅ CSV descargado','ok');
+  }
+}
+
+// ── DESCARGAR TODAS ───────────────────────────────────────
+function descargarTodas(formato){
+  var vends = ZONAS[G.zona]||[];
+  var allRows = [], done=0;
+  toast('⏳ Preparando descarga…','');
+  vends.forEach(function(v){
+    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
+      var d=snap.val();
+      if(d){
+        var h=Object.values(d)[0];
+        if(h&&h.estado==='activa'&&h.facturas&&h.cargadaPor===G.user){
+          var factsArr = Object.values(h.facturas).sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
+          factsArr.forEach(function(f){
+            allRows.push({
+              'Hoja':h.folio_hoja,'Cobrador':v,'Folio':f.folio,'Clave':f.clave||'','Nombre':f.nombre,
+              'Fecha Factura':f.fecha,'Vencimiento':f.vencimiento,'Atraso (días)':f.dias||0,
+              'Total Original':f.total||0,'Saldo':f.saldo||0,
+              'Efectivo':f.tipo==='Efectivo'?(f.montoCobrado||0):0,
+              'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
+              'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
+              'Banco':f.banco||'','Tipo de Cobro':f.tipo||'','Estado':f.estado||'pendiente',
+              'Fecha Cobro':f.fechaCobro||'','Comprobante':f.tieneFoto?'SÍ':'NO','Observaciones':''
+            });
+          });
+        }
+      }
+      done++;
+      if(done===vends.length){
+        if(!allRows.length){ toast('Sin planillas activas cargadas por ti','warn'); return; }
+        var fecha=new Date().toLocaleDateString('es-MX').replace(/\//g,'-');
+        var nombre='Planillas_'+G.zona+'_'+fecha;
+        var ws=XLSX.utils.json_to_sheet(allRows);
+        var wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'Planillas '+G.zona);
+        XLSX.writeFile(wb,nombre+'.xlsx');
+        toast('✅ Excel con '+allRows.length+' facturas descargado','ok');
+      }
+    });
+  });
+}
+
+// ── CERRAR PLANILLA ───────────────────────────────────────
+function cerrarPlanilla(r){
+  if(!confirm('¿Cerrar la planilla Hoja '+r.hoja.folio_hoja+' de '+r.vendor+'?\nPasará al historial. Los cobros no se borran.')) return;
+  var zonaV=getZona(r.vendor), k=key(r.vendor);
+  db.ref('planillas/'+zonaV+'/'+k).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
+    var d=snap.val(); if(!d) return;
+    return db.ref('planillas/'+zonaV+'/'+k+'/'+Object.keys(d)[0]+'/estado').set('cerrada');
+  }).then(function(){ toast('✓ Planilla cerrada','ok'); cargarSidebar(); cargarMain(); })
+  .catch(function(e){ console.error(e); toast('Error al cerrar','err'); });
+}
+
+// ── BORRAR PLANILLA ───────────────────────────────────────
+function borrarPlanilla(r){
+  if(!confirm('¿BORRAR la planilla Hoja '+r.hoja.folio_hoja+' de '+r.vendor+'?\nEsta acción NO se puede deshacer.\nLos cobros registrados NO se borran.')) return;
+  var zonaV=getZona(r.vendor), k=key(r.vendor);
+  db.ref('planillas/'+zonaV+'/'+k).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
+    var d=snap.val(); if(!d) return;
+    return db.ref('planillas/'+zonaV+'/'+k+'/'+Object.keys(d)[0]).remove();
+  }).then(function(){ toast('🗑 Planilla borrada','ok'); cargarSidebar(); cargarMain(); })
+  .catch(function(e){ console.error(e); toast('Error al borrar','err'); });
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+var _tt;
+function toast(msg,tipo){
+  var t=el('toast'); t.textContent=msg; t.className='toast show '+(tipo||'');
+  clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('show'); },3200);
+}
+</script>
+</body>
+</html>
