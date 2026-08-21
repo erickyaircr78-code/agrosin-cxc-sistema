@@ -212,7 +212,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         <div id="bloqueDescuento" style="display:none;">
           <div class="fila2">
             <div class="campo"><label>Devolución ($)</label><input type="number" id="inpDevolucion" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
-            <div class="campo"><label>Descuento pronto pago ($)</label><input type="number" id="inpDescuento" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
+            <div class="campo"><label>Descuento ($)</label><input type="number" id="inpDescuento" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
           </div>
           <div style="font-size:10px;color:var(--gris);margin-top:-6px;margin-bottom:10px;line-height:1.4;">
             Primero se resta la devolución, y el descuento aplica sobre lo que queda — como te lo dice el cliente.
@@ -536,7 +536,7 @@ function recalcular(){
   var box = document.getElementById('calcBox');
   var filas = '<div class="calc-row"><span>Saldo de la factura</span><span>'+fmt(saldoAntes)+'</span></div>';
   if(devolucion>0) filas += '<div class="calc-row"><span>− Devolución</span><span>'+fmt(devolucion)+'</span></div>';
-  if(descuentoInput>0) filas += '<div class="calc-row"><span>− Descuento pronto pago</span><span>'+fmt(descuentoInput)+'</span></div>';
+  if(descuentoInput>0) filas += '<div class="calc-row"><span>− Descuento</span><span>'+fmt(descuentoInput)+'</span></div>';
   filas += '<div class="calc-row"><span>− Pagado</span><span>'+fmt(pagado)+'</span></div>';
   var claseTotal = restante <= 0.005 ? 'ok' : 'deb';
   var txt = restante <= 0.005 ? 'LIQUIDADA ✓' : ('Sigue debiendo '+fmt(restante));
@@ -627,11 +627,142 @@ function seguirCobrando(){
   cancelarSeleccion();
   document.getElementById('tarjetaRecibo').style.display = 'none';
 }
+/* ---------- Generar imagen del ticket (canvas) — igual que ya funcionaba en el piloto ---------- */
+function dibujarTicketCanvas(r){
+  var W = 720, H = r.saldoDespues>0.005 || r.devolucion>0 || r.descuento>0 ? 860 : 760, esc = 2;
+  var cv = document.createElement('canvas');
+  cv.width = W*esc; cv.height = H*esc;
+  var ctx = cv.getContext('2d');
+  ctx.scale(esc, esc);
+
+  function rr(x,y,w,h,rad){
+    ctx.beginPath();
+    ctx.moveTo(x+rad,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rad);
+    ctx.arcTo(x+w,y+h,x,y+h,rad);
+    ctx.arcTo(x,y+h,x,y,rad);
+    ctx.arcTo(x,y,x+w,y,rad);
+    ctx.closePath();
+  }
+
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  rr(20,20,W-40,H-40,20); ctx.clip();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(20,20,W-40,H-40);
+
+  ctx.fillStyle = '#1d4ed8';
+  ctx.fillRect(20,20,W-40,170);
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.font = '700 20px Arial'; ctx.textAlign = 'center';
+  ctx.fillText('A G R O S I N', W/2, 78);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 34px Arial';
+  ctx.fillText('Comprobante de Cobro', W/2, 130);
+  ctx.restore();
+
+  var filas = [['Folio', r.folioRecibo], ['Vendedor', r.vendor], ['Cliente', r.cliente], ['Factura', r.folio], ['Fecha', r.fecha]];
+  if(r.devolucion>0) filas.push(['Devolución', fmt(r.devolucion)]);
+  if(r.descuento>0) filas.push(['Descuento', fmt(r.descuento)]);
+  var y = 235;
+  ctx.textAlign = 'left';
+  filas.forEach(function(f){
+    ctx.fillStyle = '#64748b';
+    ctx.font = '700 20px Arial';
+    ctx.fillText(f[0], 60, y);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 20px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(f[1]), W-60, y);
+    ctx.textAlign = 'left';
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(60,y+18); ctx.lineTo(W-60,y+18); ctx.stroke();
+    ctx.setLineDash([]);
+    y += 60;
+  });
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#15803d';
+  ctx.font = '900 52px Arial';
+  ctx.fillText(fmt(r.monto), W/2, y+75);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '800 17px Arial';
+  ctx.fillText('MONTO RECIBIDO', W/2, y+105);
+
+  if(r.saldoDespues>0.005){
+    ctx.fillStyle = '#ea580c';
+    ctx.font = '900 22px Arial';
+    ctx.fillText('Queda pendiente: '+fmt(r.saldoDespues), W/2, y+145);
+  } else {
+    ctx.fillStyle = '#15803d';
+    ctx.font = '900 22px Arial';
+    ctx.fillText('FACTURA LIQUIDADA ✓', W/2, y+145);
+  }
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(20, H-90, W-40, 70);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '700 15px Arial';
+  ctx.fillText('Comprobante generado por el sistema de cobranza AGROSIN', W/2, H-50);
+
+  return cv;
+}
+
+function dataURLaBlob(dataUrl){
+  var partes = dataUrl.split(',');
+  var mime = partes[0].match(/:(.*?);/)[1];
+  var bstr = atob(partes[1]);
+  var n = bstr.length;
+  var u8 = new Uint8Array(n);
+  while(n--) u8[n] = bstr.charCodeAt(n);
+  return new Blob([u8], {type: mime});
+}
+
+function mostrarImagenParaGuardar(dataUrl, textoWA){
+  var overlay = document.createElement('div');
+  overlay.style = 'position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;';
+  overlay.innerHTML =
+    '<img src="'+dataUrl+'" style="max-width:88%;max-height:60vh;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);">'+
+    '<div style="color:#fff;font-size:13px;text-align:center;font-weight:700;max-width:320px;line-height:1.5;">Mantén presionada la imagen y elige "Guardar imagen", luego ábrela en WhatsApp.</div>'+
+    '<button type="button" style="padding:14px 22px;background:#25D366;color:#fff;border:none;border-radius:12px;font-weight:900;font-size:14px;">📤 Abrir WhatsApp</button>'+
+    '<button type="button" style="padding:10px 22px;background:transparent;color:#cbd5e1;border:1.5px solid #475569;border-radius:12px;font-weight:800;font-size:13px;">Cerrar</button>';
+  var botones = overlay.querySelectorAll('button');
+  botones[0].onclick = function(){ window.open('https://wa.me/?text='+encodeURIComponent(textoWA), '_blank'); };
+  botones[1].onclick = function(){ overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+/* ---------- Compartir por WhatsApp CON LA IMAGEN del comprobante ---------- */
 function compartirWA(){
   if(!ultimoTicket) return;
-  var texto = 'Comprobante AGROSIN — Folio '+ultimoTicket.folioRecibo+' — '+ultimoTicket.cliente+' — '+fmt(ultimoTicket.monto);
-  if(ultimoTicket.id){ (esFueraDePlanilla? db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+ultimoTicket.id) : db.ref('cobros/'+miZona+'/'+miKey+'/'+ultimoTicket.id)).update({compartido:true}); }
-  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+  var r = ultimoTicket;
+  var cv = dibujarTicketCanvas(r);
+  var dataUrl = cv.toDataURL('image/png');
+  var texto = 'Comprobante AGROSIN — Folio '+r.folioRecibo;
+  var nombreArchivo = 'Recibo_'+r.folioRecibo+'.png';
+
+  function continuarSiempre(){
+    var ref = esFueraDePlanilla ? db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+r.id) : db.ref('cobros/'+miZona+'/'+miKey+'/'+r.id);
+    if(r.id){ ref.update({compartido:true, compartidoTs:Date.now()}); }
+    toast('Recibo enviado ✓','ok');
+  }
+
+  var archivo = null;
+  try {
+    var blob = dataURLaBlob(dataUrl);
+    archivo = new File([blob], nombreArchivo, {type:'image/png'});
+  } catch(e){ /* si falla, usamos el plan B de abajo */ }
+
+  if(archivo && navigator.canShare && navigator.canShare({files:[archivo]})){
+    navigator.share({files:[archivo], title:'Comprobante AGROSIN', text:texto})
+      .then(continuarSiempre)
+      .catch(function(){ mostrarImagenParaGuardar(dataUrl, texto); continuarSiempre(); });
+  } else {
+    mostrarImagenParaGuardar(dataUrl, texto);
+    continuarSiempre();
+  }
 }
 
 /* ── TAB 2: pendientes de depósito/entrega (solo Efectivo) ── */
