@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Cobros AGROSIN</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--azul:#1d4ed8;--verde:#15803d;--rojo:#dc2626;--gris:#64748b;--borde:#e2e8f0;--fondo:#f1f5f9;--blanco:#ffffff;--texto:#0f172a;--morado:#7c3aed;--wa:#25D366;--ora:#ea580c;}
+body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;display:flex;flex-direction:column;}
+.header{background:var(--azul);}
+.header-inner{padding:18px 20px 16px;text-align:center;position:relative;}
+.logo-txt{font-size:11px;font-weight:900;letter-spacing:3px;color:rgba(255,255,255,.55);}
+.titulo{font-size:22px;font-weight:900;color:#fff;margin-top:2px;}
+.subtitulo{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px;}
+.conn{position:absolute;top:18px;right:16px;display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:rgba(255,255,255,.7);}
+.cdot{width:8px;height:8px;border-radius:50%;background:#86efac;animation:pp 2s ease-in-out infinite;}
+.cdot.off{background:#fca5a5;animation:none;}
+@keyframes pp{0%,100%{opacity:1}50%{opacity:.3}}
+.topbtn-temp{position:absolute;top:16px;left:12px;background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:5px 8px;font-size:9px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;}
+.cuerpo{flex:1;padding:16px 14px 48px;max-width:480px;margin:0 auto;width:100%;}
+.saludo-fijo{display:flex;align-items:center;gap:8px;background:#eff6ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--azul);font-weight:800;}
+.saludo-fijo .cambiar{margin-left:auto;font-weight:700;color:#93c5fd;font-size:11px;cursor:pointer;text-decoration:underline;}
+.tarjeta{background:var(--blanco);border-radius:18px;box-shadow:0 2px 16px rgba(0,0,0,.07);padding:20px 18px;margin-bottom:14px;}
+.tarjeta-titulo{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:var(--azul);margin-bottom:16px;}
+.campo{margin-bottom:13px;}
+.campo label{display:block;font-size:11px;font-weight:800;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.campo select,.campo input:not([type="checkbox"]){width:100%;padding:15px 14px;border:2px solid var(--borde);border-radius:12px;font-size:16px;font-family:'Nunito',sans-serif;font-weight:700;background:#f8fafc;color:var(--texto);outline:none;-webkit-appearance:none;appearance:none;}
+.campo input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--azul);}
+.campo select:focus,.campo input:focus{border-color:var(--azul);box-shadow:0 0 0 3px rgba(29,78,216,.1);background:#fff;}
+.campo input[type=number]{font-size:24px;letter-spacing:.5px;}
+.fila2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn-reg{width:100%;padding:18px;background:var(--verde);color:#fff;border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 4px 16px rgba(21,128,61,.35);margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-reg:active{transform:scale(.97);box-shadow:none;}
+.btn-reg:disabled{background:#94a3b8;box-shadow:none;}
+.btn-secundario{width:100%;padding:14px;background:#fff;color:var(--azul);border:2px solid #bfdbfe;border-radius:14px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:900;margin-top:10px;cursor:pointer;}
+.btn-wa{width:100%;padding:16px;background:var(--wa);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(37,211,102,.35);margin-top:10px;}
+.btn-morado{background:var(--morado);box-shadow:0 4px 16px rgba(124,58,237,.35);}
+.tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.tipo-opt{padding:14px 6px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;text-align:center;font-size:13px;font-weight:800;color:var(--gris);cursor:pointer;user-select:none;}
+.tipo-opt.act{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 3px 10px rgba(29,78,216,.3);}
+.tabs{display:flex;gap:8px;margin-bottom:14px;}
+.tab{flex:1;text-align:center;padding:10px 6px;border-radius:10px;font-size:12px;font-weight:800;background:#e2e8f0;color:var(--gris);border:none;cursor:pointer;}
+.tab.act{background:var(--azul);color:#fff;}
+.badge-cont{background:#dc2626;color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;}
+.ticket{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.1);}
+.ticket-head{background:var(--azul);color:#fff;padding:18px;text-align:center;}
+.ticket-head .agro{font-size:11px;font-weight:900;letter-spacing:3px;opacity:.7;}
+.ticket-head .tit{font-size:18px;font-weight:900;margin-top:2px;}
+.ticket-body{padding:20px 22px;}
+.ticket-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed #e2e8f0;font-size:13px;}
+.ticket-row .lbl{color:var(--gris);font-weight:700;}
+.ticket-row .val{font-weight:800;color:var(--texto);}
+.ticket-monto{text-align:center;padding:14px 0;}
+.ticket-monto .n{font-size:32px;font-weight:900;color:var(--verde);}
+.ticket-monto .l{font-size:11px;color:var(--gris);font-weight:800;text-transform:uppercase;letter-spacing:1px;}
+.ticket-foot{background:#f8fafc;padding:12px 22px;text-align:center;font-size:10px;color:#94a3b8;font-weight:700;}
+.chk-item{display:flex;align-items:center;gap:10px;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.chk-item.off{background:#f8fafc;border-color:var(--borde);}
+.chk-box{width:22px;height:22px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:900;background:var(--azul);}
+.chk-item.off .chk-box{background:transparent;border:2px solid #cbd5e1;}
+.chk-txt{flex:1;}
+.chk-cliente{font-size:12px;font-weight:800;color:var(--texto);}
+.chk-meta{font-size:10px;color:var(--azul);font-weight:700;}
+.chk-monto{font-size:14px;font-weight:900;color:var(--verde);}
+.resumen-sel{background:var(--azul);color:#fff;border-radius:12px;padding:14px 16px;margin:12px 0;}
+.resumen-sel .lbl{font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:1px;font-weight:800;}
+.resumen-sel .val{font-size:22px;font-weight:900;margin-top:2px;}
+.ruta-grid{display:flex;gap:10px;margin-top:4px;}
+.ruta-btn{flex:1;padding:16px 10px;border-radius:12px;border:2px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;}
+.ruta-btn.act{border-color:var(--azul);background:#eff6ff;}
+.ruta-ico{font-size:22px;}
+.ruta-txt{font-size:11px;font-weight:800;color:var(--texto);margin-top:4px;}
+.entrega-pend{border:1.5px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.entrega-pend .fila-cerrada{display:flex;justify-content:space-between;align-items:center;}
+.entrega-pend .titulo-pend{font-size:12px;font-weight:800;color:#0f172a;}
+.entrega-pend .monto-pend{font-size:14px;font-weight:900;color:#92600a;}
+.entrega-pend .fila-abierta{margin-top:10px;padding-top:10px;border-top:1px dashed #fed7aa;}
+.entrega-pend .fila-campos{display:flex;gap:8px;margin-bottom:8px;}
+.entrega-pend select{flex:1;padding:12px 10px;border:2px solid var(--borde);border-radius:10px;font-size:14px;font-weight:700;background:#fff;}
+.entrega-pend input[type=password]{width:76px;padding:12px 8px;border:2px solid var(--borde);border-radius:10px;font-size:16px;font-weight:800;letter-spacing:5px;text-align:center;background:#fff;}
+.entrega-pend .err-pend{color:var(--rojo);font-size:11px;font-weight:700;margin:0 0 8px;}
+.diff-box{border-radius:12px;padding:12px 14px;margin-top:10px;font-size:12px;font-weight:700;}
+.diff-box.warn{background:#fff7ed;border:1.5px solid #fed7aa;color:#92600a;}
+.diff-box.ok{background:#f0fdf4;border:1.5px solid #86efac;color:var(--verde);}
+.vacio{text-align:center;color:var(--gris);font-size:13px;padding:22px 0;}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(70px);background:#0f172a;color:#fff;padding:13px 26px;border-radius:40px;font-size:14px;font-weight:800;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap;max-width:88vw;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:var(--verde);}
+.toast.err{background:var(--rojo);}
+.toast.warn{background:var(--ora);}
+.pantalla{display:none;}
+.pantalla.act{display:block;}
+.busc-item{padding:14px;border:2px solid var(--borde);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#f8fafc;}
+.busc-item:active{background:#eff6ff;}
+.busc-cliente{font-size:13px;font-weight:800;color:var(--texto);}
+.busc-meta{font-size:11px;color:var(--gris);font-weight:700;margin-top:2px;}
+.busc-saldo{font-size:15px;font-weight:900;color:var(--ora);margin-top:4px;}
+.fact-sel{background:#eff6ff;border:2px solid #93c5fd;border-radius:14px;padding:14px 16px;margin-bottom:14px;}
+.fact-sel .fs-cliente{font-size:15px;font-weight:900;color:var(--texto);}
+.fact-sel .fs-meta{font-size:11px;color:var(--azul);font-weight:700;margin-top:2px;}
+.fact-sel .fs-saldo{font-size:20px;font-weight:900;color:var(--ora);margin-top:6px;}
+.fact-sel .fs-cambiar{font-size:11px;color:var(--gris);text-decoration:underline;margin-top:6px;cursor:pointer;display:inline-block;}
+.toggle-desc{display:flex;align-items:center;gap:8px;padding:12px 4px;font-size:13px;font-weight:800;color:var(--texto);cursor:pointer;}
+.calc-box{background:#f8fafc;border:1.5px dashed var(--borde);border-radius:12px;padding:12px 14px;margin-top:8px;font-size:12px;}
+.calc-row{display:flex;justify-content:space-between;padding:3px 0;}
+.calc-row.total{border-top:1.5px solid var(--borde);margin-top:6px;padding-top:8px;font-weight:900;font-size:14px;}
+.calc-row.total.ok{color:var(--verde);}
+.calc-row.total.deb{color:var(--ora);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button type="button" class="topbtn-temp" onclick="borrarPruebasVendedor()">🗑️ TEMP: borrar pruebas</button>
+  <div class="header-inner">
+    <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
+    <div class="logo-txt">AGROSIN</div>
+    <div class="titulo">Registro de Cobro</div>
+    <div class="subtitulo">Captura tus pagos del día</div>
+  </div>
+</div>
+
+<div class="cuerpo">
+
+  <!-- Selección de zona + vendedor -->
+  <div class="pantalla act" id="pSelectVendedor">
+    <div class="tarjeta">
+      <div class="tarjeta-titulo">👤 ¿Quién eres?</div>
+      <div class="campo">
+        <label>Tu zona</label>
+        <select id="selZona" onchange="cargarVendedoresDeZona()">
+          <option value="">— Selecciona tu zona —</option>
+          <option value="CDMX">CDMX</option>
+          <option value="MORELOS">Morelos</option>
+          <option value="PUEBLA">Puebla</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Tu nombre</label>
+        <select id="selVendedor">
+          <option value="">— Primero selecciona tu zona —</option>
+        </select>
+      </div>
+      <button type="button" class="btn-reg" onclick="fijarVendedor()"><span>✓</span> Continuar</button>
+    </div>
+  </div>
+
+  <!-- App principal -->
+  <div class="pantalla" id="pApp">
+    <div class="saludo-fijo">👤 <span id="nombreFijo"></span><span class="cambiar" onclick="cambiarVendedor()">(cambiar)</span></div>
+
+    <div class="tabs">
+      <button type="button" class="tab act" id="tabBtn1" onclick="irTab(1)">1. Cobrar</button>
+      <button type="button" class="tab" id="tabBtn2" onclick="irTab(2)">2. Depósito<span class="badge-cont" id="badgePend" style="display:none;"></span></button>
+    </div>
+
+    <!-- TAB 1: Cobrar -->
+    <div id="tab1">
+
+      <!-- Paso A: buscar factura -->
+      <div class="tarjeta" id="tarjetaBuscar">
+        <div class="tarjeta-titulo">🔍 Buscar factura</div>
+        <div class="campo">
+          <input type="text" id="inpBuscar" placeholder="Folio o nombre del cliente" oninput="buscarFactura()">
+        </div>
+        <div id="resultadosBusqueda"></div>
+        <div id="sinResultados" style="display:none;">
+          <div class="vacio">No se encontró esa factura en tu planilla de hoy.</div>
+          <button type="button" class="btn-secundario" onclick="abrirCobroFueraPlanilla()">➕ Cobro fuera de planilla</button>
+        </div>
+      </div>
+
+      <!-- Paso B: factura seleccionada + formulario de cobro -->
+      <div class="tarjeta" id="tarjetaForm" style="display:none;">
+        <div class="fact-sel" id="factSelBox"></div>
+
+        <div class="tarjeta-titulo">💳 ¿Cómo pagó?</div>
+        <div class="tipo-grid" id="tipoGrid">
+          <div class="tipo-opt act" data-tipo="Efectivo" onclick="elegirTipo('Efectivo')">💵 Efectivo</div>
+          <div class="tipo-opt" data-tipo="Transferencia" onclick="elegirTipo('Transferencia')">🏦 Transferencia</div>
+          <div class="tipo-opt" data-tipo="Cheque" onclick="elegirTipo('Cheque')">📝 Cheque</div>
+          <div class="tipo-opt" data-tipo="Deposito" onclick="elegirTipo('Deposito')">🏧 Depósito</div>
+        </div>
+
+        <div class="campo" id="bloqueBanco" style="display:none;">
+          <label>Banco</label>
+          <select id="selBanco">
+            <option>INBURSA</option><option>BANORTE</option><option>SCOTIABANK</option><option>BANAMEX</option>
+            <option>SANTANDER</option><option>BBVA-9</option><option>BBVA-1</option><option>AZTECA</option>
+            <option>BANBAJIO</option><option>BANREGIO</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Monto que pagó ($)</label>
+          <input type="number" id="inpMonto" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="recalcular()">
+        </div>
+
+        <div class="toggle-desc" onclick="toggleDescuento()">
+          <input type="checkbox" id="chkDescuento" onclick="event.stopPropagation();toggleDescuento(true)">
+          <span>¿Hubo descuento o devolución de material?</span>
+        </div>
+
+        <div id="bloqueDescuento" style="display:none;">
+          <div class="fila2">
+            <div class="campo"><label>Devolución ($)</label><input type="number" id="inpDevolucion" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
+            <div class="campo"><label>Descuento pronto pago ($)</label><input type="number" id="inpDescuento" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
+          </div>
+          <div style="font-size:10px;color:var(--gris);margin-top:-6px;margin-bottom:10px;line-height:1.4;">
+            Primero se resta la devolución, y el descuento aplica sobre lo que queda — como te lo dice el cliente.
+          </div>
+        </div>
+
+        <div class="calc-box" id="calcBox"></div>
+
+        <button type="button" class="btn-reg btn-morado" id="btnEnviar" style="margin-top:14px;" onclick="registrarCobro()"><span>📸</span> Generar recibo</button>
+        <button type="button" class="btn-secundario" onclick="cancelarSeleccion()">← Buscar otra factura</button>
+      </div>
+
+      <div class="tarjeta" id="tarjetaRecibo" style="display:none;">
+        <div class="ticket" id="ticketHTML"></div>
+        <button type="button" class="btn-wa" onclick="compartirWA()">📤 Compartir por WhatsApp</button>
+        <button type="button" class="btn-secundario" onclick="seguirCobrando()">Seguir cobrando</button>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: Depósito / Entrega -->
+    <div id="tab2" style="display:none;">
+      <div class="tarjeta" id="tarjetaPendientes">
+        <div class="tarjeta-titulo">📋 Efectivo por entregar</div>
+        <div style="font-size:11px;color:var(--verde);font-weight:800;background:#f0fdf4;border-radius:8px;padding:8px 10px;margin-bottom:10px;">✓ Todo viene seleccionado — desmarca lo que NO va en esta entrega</div>
+        <div id="listaPendientes"></div>
+        <div class="resumen-sel" id="resumenSel" style="display:none;">
+          <div class="lbl">Seleccionado</div>
+          <div class="val" id="resumenValor">$0.00</div>
+        </div>
+        <div id="rutaWrap" style="display:none;">
+          <div class="tarjeta-titulo" style="margin-top:14px;">¿Qué vas a hacer con esto?</div>
+          <div class="ruta-grid">
+            <div class="ruta-btn act" id="rutaBanco" onclick="elegirRuta('banco')">
+              <div class="ruta-ico">🏦</div><div class="ruta-txt">Lo deposito<br>yo en el banco</div>
+            </div>
+            <div class="ruta-btn" id="rutaOficina" onclick="elegirRuta('oficina')">
+              <div class="ruta-ico">🏢</div><div class="ruta-txt">Lo entrego en<br>la oficina (corte)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tarjeta" id="tarjetaBanco" style="display:none;">
+        <div class="tarjeta-titulo">🏦 Detalle del depósito</div>
+        <div class="fila2">
+          <div class="campo"><label>Tipo de pago</label>
+            <select id="selTipoDep"><option>Depósito</option><option>Transferencia</option><option>Terminal Bancaria</option></select>
+          </div>
+          <div class="campo"><label>Banco</label><select id="selBancoDep">
+            <option>INBURSA</option><option>BANORTE</option><option>SCOTIABANK</option><option>BANAMEX</option>
+            <option>SANTANDER</option><option>BBVA-9</option><option>BBVA-1</option><option>AZTECA</option>
+            <option>BANBAJIO</option><option>BANREGIO</option>
+          </select></div>
+        </div>
+        <div class="campo" style="margin-top:14px;">
+          <label>Monto que realmente depositaste ($)</label>
+          <input type="number" id="inpMontoReal" step="0.01">
+        </div>
+        <div id="diffBox"></div>
+        <button type="button" class="btn-reg" onclick="confirmarDeposito()"><span>💾</span> Confirmar depósito</button>
+      </div>
+
+      <div class="tarjeta" id="tarjetaOficina" style="display:none;">
+        <div class="tarjeta-titulo">🏢 Entrega en oficina</div>
+        <div style="font-size:12px;color:var(--gris);line-height:1.6;margin-bottom:10px;">
+          Esto solo registra tu intención de entregarlo. Cuando de verdad estés en la oficina, entra aquí y complétalo — no antes.
+        </div>
+        <button type="button" class="btn-reg" style="background:var(--azul);box-shadow:0 4px 16px rgba(29,78,216,.35);" onclick="registrarPendienteOficina()"><span>🏢</span> Registrar como pendiente de entrega</button>
+      </div>
+
+      <div id="entregasPendientesWrap"></div>
+      <div class="vacio" id="sinPendientes" style="display:none;">No tienes pendientes por confirmar. 🎉</div>
+
+      <div class="tarjeta" style="margin-top:18px;">
+        <button type="button" class="btn-secundario" style="border-color:#fca5a5;color:var(--rojo);" onclick="cerrarMiDia()">🔒 Cerrar mi día</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   FIREBASE — agrosin-cxc-sistema (sistema nuevo unificado)
+   ============================================================ */
+firebase.initializeApp({
+  apiKey:"AIzaSyBxWhvKsx4DL35wKxine4Av7aVM1XxetgA",
+  authDomain:"agrosin-cxc-sistema.firebaseapp.com",
+  databaseURL:"https://agrosin-cxc-sistema-default-rtdb.firebaseio.com",
+  projectId:"agrosin-cxc-sistema",
+  storageBucket:"agrosin-cxc-sistema.firebasestorage.app",
+  messagingSenderId:"91698273557",
+  appId:"1:91698273557:web:158b43ac5129b2c0849d1c"
+});
+var db = firebase.database();
+firebase.auth().signInAnonymously().catch(function(e){ console.error('Error de acceso:', e); });
+firebase.auth().onAuthStateChanged(function(u){
+  var cdot = document.getElementById('cdot'), clbl = document.getElementById('clbl');
+  if(u){ cdot.classList.remove('off'); clbl.textContent = 'En línea'; }
+  else { cdot.classList.add('off'); clbl.textContent = 'Sin conexión'; }
+});
+
+/* ============================================================
+   ⚠️ BLOQUE TEMPORAL — SOLO PARA FASE DE PRUEBAS ⚠️
+   Borra cobros/depositos/entregasOficina/cobrosFueraPlanilla de este
+   vendedor. NO toca "planillas" (eso lo maneja el botón del módulo 1).
+   Quitar este bloque completo (y el botón) antes de usar en real.
+   ============================================================ */
+function borrarPruebasVendedor(){
+  var p1 = confirm('⚠️ Esto borra TODOS tus cobros, depósitos y entregas de prueba en agrosin-cxc-sistema.\n\nNo afecta las planillas ni otros proyectos.\n\n¿Continuar?');
+  if(!p1) return;
+  var p2 = prompt('Escribe BORRAR para confirmar:');
+  if(p2 !== 'BORRAR'){ toast('Cancelado','warn'); return; }
+  Promise.all([
+    db.ref('cobros').remove(),
+    db.ref('depositos').remove(),
+    db.ref('entregasOficina').remove(),
+    db.ref('cobrosFueraPlanilla').remove()
+  ]).then(function(){
+    toast('✅ Pruebas de cobros borradas','ok');
+    setTimeout(function(){ location.reload(); }, 1200);
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+// ══════════════════════════════════════════════════════════
+
+/* ── Catálogo de zonas/vendedores (igual que el resto del sistema) ── */
+var ZONAS = {
+  CDMX: ["ABRAHAM","ALFREDO","ANTONIO","CARLOS RONQUILLO","CASAUBON","CUAUHTEMOC",
+         "DANIEL M","ELVIRA","ESPERANZA","FELIX","FERNANDO GOMEZ","GERARDO HERNANDEZ",
+         "ISRAEL ODIN","JOSE LABASTIDA","JOSE RAMOS","JUAN OCAÑA","LUIS VENTURA",
+         "MANUEL TORRES","OLGA","OLGA ORTIZ","PATY GARCIA","RAYMUNDO LOPEZ",
+         "RICARDO BARRERA","ROBERTO","RODRIGO GONZALEZ","ROXANA"],
+  MORELOS: ["DAVID VEGA","EMMANUEL","ENRIQUE","ENRIQUE ACAP","EVA JOAQUIN","IRMA HDZ",
+            "ISRAEL","JOSUE","JUAN CARLOS","MARTIN REYES","RICARDO FIGUEROA",
+            "ROBERTO HDEZ","ULISES","VICTOR HUGO"],
+  PUEBLA: ["ALBERTO GARCIA","EMILIO","JORGE","JOSE HERNANDEZ","MARCO ANTONIO",
+           "RICARDO HDZ J","RICARDO PEREZ","ROSENDO"]
+};
+function key(v){ return v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase(); }
+function fmt(n){ return '$'+(+n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* ── Estado global ── */
+var miZona = null, miNombre = null, miKey = null;
+var planillaActiva = null;   // {ts, facturas:{...}}
+var facturaSel = null;       // factura elegida para cobrar (o null si es fuera de planilla)
+var esFueraDePlanilla = false;
+var tipoActual = 'Efectivo';
+var ultimoTicket = null;
+var pendientes = [], seleccion = {}, entregasPendientes = [], rutaActual = 'banco';
+var PERSONAL_OFICINA = ['LUPE','CARI','KAREN','JENNIFER','NANCY','SAMANTA','CLAUDIA'];
+
+function toast(msg, tipo){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + (tipo||'');
+  setTimeout(function(){ t.className = 'toast'; }, 2600);
+}
+
+/* ── Selección de vendedor ── */
+function cargarVendedoresDeZona(){
+  var zona = document.getElementById('selZona').value;
+  var sel = document.getElementById('selVendedor');
+  if(!zona){ sel.innerHTML = '<option value="">— Primero selecciona tu zona —</option>'; return; }
+  var opts = '<option value="">— Selecciona tu nombre —</option>';
+  ZONAS[zona].forEach(function(n){ opts += '<option>'+n+'</option>'; });
+  sel.innerHTML = opts;
+}
+
+function fijarVendedor(){
+  var zona = document.getElementById('selZona').value;
+  var nombre = document.getElementById('selVendedor').value;
+  if(!zona || !nombre){ toast('Selecciona tu zona y tu nombre','err'); return; }
+  miZona = zona; miNombre = nombre; miKey = key(nombre);
+  localStorage.setItem('v3_zona', miZona);
+  localStorage.setItem('v3_nombre', miNombre);
+  document.getElementById('nombreFijo').textContent = miNombre + ' · ' + miZona;
+  document.getElementById('pSelectVendedor').classList.remove('act');
+  document.getElementById('pApp').classList.add('act');
+  cargarPlanillaActiva();
+  escucharPendientes();
+  escucharEntregasPendientes();
+}
+function cambiarVendedor(){
+  document.getElementById('pApp').classList.remove('act');
+  document.getElementById('pSelectVendedor').classList.add('act');
+}
+(function initVendedor(){
+  var z = localStorage.getItem('v3_zona'), n = localStorage.getItem('v3_nombre');
+  if(z && n){
+    document.getElementById('selZona').value = z;
+    cargarVendedoresDeZona();
+    document.getElementById('selVendedor').value = n;
+    fijarVendedor();
+  }
+})();
+
+function irTab(n){
+  document.getElementById('tabBtn1').classList.toggle('act', n===1);
+  document.getElementById('tabBtn2').classList.toggle('act', n===2);
+  document.getElementById('tab1').style.display = n===1 ? '' : 'none';
+  document.getElementById('tab2').style.display = n===2 ? '' : 'none';
+  if(n===2) renderPendientes();
+}
+
+/* ── Cargar la planilla activa del vendedor ── */
+function cargarPlanillaActiva(){
+  db.ref('planillas/'+miZona+'/'+miKey).orderByChild('estado').equalTo('activa').limitToLast(1)
+    .once('value').then(function(snap){
+      planillaActiva = null;
+      snap.forEach(function(c){ planillaActiva = {ts: c.key, facturas: c.val().facturas || {}}; });
+      if(!planillaActiva){ toast('No tienes una planilla activa hoy','warn'); }
+    });
+}
+
+/* ── Búsqueda de facturas ── */
+function buscarFactura(){
+  var q = document.getElementById('inpBuscar').value.trim().toUpperCase();
+  var cont = document.getElementById('resultadosBusqueda');
+  var sinRes = document.getElementById('sinResultados');
+  if(!q || !planillaActiva){ cont.innerHTML=''; sinRes.style.display='none'; return; }
+  var facts = Object.values(planillaActiva.facturas).filter(function(f){
+    return f.estado === 'pendiente' &&
+      (String(f.folio).toUpperCase().indexOf(q)>=0 || String(f.nombre).toUpperCase().indexOf(q)>=0);
+  }).slice(0,8);
+  if(!facts.length){ cont.innerHTML=''; sinRes.style.display=''; return; }
+  sinRes.style.display='none';
+  cont.innerHTML = facts.map(function(f){
+    return '<div class="busc-item" onclick="seleccionarFactura(\''+f.folio.replace(/'/g,"\\'")+'\')">'+
+      '<div class="busc-cliente">'+f.nombre+'</div>'+
+      '<div class="busc-meta">Folio '+f.folio+' · Vence '+f.vencimiento+'</div>'+
+      '<div class="busc-saldo">'+fmt(f.saldo)+'</div>'+
+    '</div>';
+  }).join('');
+}
+function seleccionarFactura(folio){
+  facturaSel = planillaActiva.facturas[folio];
+  esFueraDePlanilla = false;
+  mostrarFormularioCobro();
+}
+function abrirCobroFueraPlanilla(){
+  var folio = prompt('Folio de la factura (el que trae el cliente):');
+  if(!folio || !folio.trim()) return;
+  var nombre = prompt('Nombre del cliente:');
+  if(!nombre || !nombre.trim()) return;
+  var total = parseFloat(prompt('Monto total de esa factura (según el cliente):'));
+  if(!total || total<=0){ toast('Monto inválido','err'); return; }
+  facturaSel = {folio: folio.trim().toUpperCase(), nombre: nombre.trim(), saldo: total, total: total, vencimiento: '—'};
+  esFueraDePlanilla = true;
+  mostrarFormularioCobro();
+}
+function mostrarFormularioCobro(){
+  document.getElementById('tarjetaBuscar').style.display = 'none';
+  document.getElementById('tarjetaForm').style.display = '';
+  document.getElementById('tarjetaRecibo').style.display = 'none';
+  var box = document.getElementById('factSelBox');
+  box.innerHTML =
+    '<div class="fs-cliente">'+facturaSel.nombre+(esFueraDePlanilla?' <span style="color:var(--ora);font-size:11px">· FUERA DE PLANILLA</span>':'')+'</div>'+
+    '<div class="fs-meta">Folio '+facturaSel.folio+'</div>'+
+    '<div class="fs-saldo">Saldo: '+fmt(facturaSel.saldo)+'</div>'+
+    '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
+  document.getElementById('inpMonto').value = '';
+  document.getElementById('inpDevolucion').value = '';
+  document.getElementById('inpDescuento').value = '';
+  document.getElementById('chkDescuento').checked = false;
+  document.getElementById('bloqueDescuento').style.display = 'none';
+  elegirTipo('Efectivo');
+  recalcular();
+}
+function cancelarSeleccion(){
+  facturaSel = null; esFueraDePlanilla = false;
+  document.getElementById('tarjetaBuscar').style.display = '';
+  document.getElementById('tarjetaForm').style.display = 'none';
+  document.getElementById('inpBuscar').value = '';
+  document.getElementById('resultadosBusqueda').innerHTML = '';
+  document.getElementById('sinResultados').style.display = 'none';
+}
+
+function elegirTipo(t){
+  tipoActual = t;
+  document.querySelectorAll('.tipo-opt').forEach(function(el){
+    el.classList.toggle('act', el.getAttribute('data-tipo')===t);
+  });
+  document.getElementById('bloqueBanco').style.display = (t==='Efectivo') ? 'none' : '';
+}
+function toggleDescuento(fromClick){
+  var chk = document.getElementById('chkDescuento');
+  if(fromClick===true){ /* el click ya cambió el checkbox */ }
+  document.getElementById('bloqueDescuento').style.display = chk.checked ? '' : 'none';
+  if(!chk.checked){ document.getElementById('inpDevolucion').value=''; document.getElementById('inpDescuento').value=''; }
+  recalcular();
+}
+
+/* ── Cálculo en vivo: Total - Devolución - Descuento - Pagado = Saldo restante ── */
+function recalcular(){
+  if(!facturaSel) return;
+  var saldoAntes = facturaSel.saldo;
+  var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
+  var descuentoInput = parseFloat(document.getElementById('inpDescuento').value) || 0;
+  var pagado = parseFloat(document.getElementById('inpMonto').value) || 0;
+
+  var subtotalTrasDevolucion = Math.max(0, saldoAntes - devolucion);
+  var restante = Math.max(0, subtotalTrasDevolucion - descuentoInput - pagado);
+  var box = document.getElementById('calcBox');
+  var filas = '<div class="calc-row"><span>Saldo de la factura</span><span>'+fmt(saldoAntes)+'</span></div>';
+  if(devolucion>0) filas += '<div class="calc-row"><span>− Devolución</span><span>'+fmt(devolucion)+'</span></div>';
+  if(descuentoInput>0) filas += '<div class="calc-row"><span>− Descuento pronto pago</span><span>'+fmt(descuentoInput)+'</span></div>';
+  filas += '<div class="calc-row"><span>− Pagado</span><span>'+fmt(pagado)+'</span></div>';
+  var claseTotal = restante <= 0.005 ? 'ok' : 'deb';
+  var txt = restante <= 0.005 ? 'LIQUIDADA ✓' : ('Sigue debiendo '+fmt(restante));
+  filas += '<div class="calc-row total '+claseTotal+'"><span>Resultado</span><span>'+txt+'</span></div>';
+  box.innerHTML = filas;
+}
+
+/* ── Registrar el cobro ── */
+function registrarCobro(){
+  if(!facturaSel){ toast('Selecciona una factura primero','err'); return; }
+  var monto = parseFloat(document.getElementById('inpMonto').value) || 0;
+  var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
+  var descuento = parseFloat(document.getElementById('inpDescuento').value) || 0;
+  if(monto<=0 && devolucion<=0 && descuento<=0){ toast('Captura al menos un monto','err'); return; }
+  if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco','err'); return; }
+
+  var saldoAntes = facturaSel.saldo;
+  var subtotalTrasDevolucion = Math.max(0, saldoAntes - devolucion);
+  var saldoDespues = Math.max(0, subtotalTrasDevolucion - descuento - monto);
+  var banco = tipoActual==='Efectivo' ? null : document.getElementById('selBanco').value;
+  var ahora = new Date();
+  var fecha = ahora.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  var folioRecibo = 'R'+ahora.getTime().toString().slice(-8);
+
+  var registro = {
+    vendor: miNombre, key: miKey, zona: miZona,
+    folio: facturaSel.folio, cliente: facturaSel.nombre,
+    fueraDePlanilla: esFueraDePlanilla,
+    planillaTs: esFueraDePlanilla ? null : (planillaActiva ? planillaActiva.ts : null),
+    tipo: tipoActual, banco: banco,
+    monto: monto, devolucion: devolucion, descuento: descuento,
+    saldoAntes: saldoAntes, saldoDespues: saldoDespues,
+    ts: ahora.getTime(), fecha: fecha, folioRecibo: folioRecibo,
+    estado: tipoActual==='Efectivo' ? 'pendiente' : 'confirmado'
+  };
+
+  var refPromise;
+  if(esFueraDePlanilla){
+    refPromise = db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey).push(registro);
+  } else {
+    refPromise = db.ref('cobros/'+miZona+'/'+miKey).push(registro);
+  }
+
+  refPromise.then(function(ref){
+    var updates = {};
+    if(!esFueraDePlanilla && planillaActiva){
+      var base = 'planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+facturaSel.folio+'/';
+      updates[base+'saldo'] = saldoDespues;
+      updates[base+'estado'] = saldoDespues<=0.005 ? 'cobrada' : 'abono';
+      updates[base+'montoCobrado'] = (facturaSel.montoCobrado||0) + monto;
+      updates[base+'tipo'] = tipoActual;
+      updates[base+'banco'] = banco;
+      updates[base+'devolucion'] = (facturaSel.devolucion||0) + devolucion;
+      updates[base+'descuento'] = (facturaSel.descuento||0) + descuento;
+      updates[base+'cobradoPor'] = miNombre;
+      updates[base+'fechaCobro'] = ahora.toLocaleDateString('es-MX');
+      planillaActiva.facturas[facturaSel.folio].saldo = saldoDespues;
+      planillaActiva.facturas[facturaSel.folio].estado = saldoDespues<=0.005 ? 'cobrada' : 'abono';
+    }
+    ultimoTicket = Object.assign({}, registro, {id: ref.key});
+    return db.ref().update(updates);
+  }).then(function(){
+    mostrarRecibo(ultimoTicket);
+  }).catch(function(e){ toast('Error al guardar: '+e.message,'err'); });
+}
+
+function mostrarRecibo(r){
+  document.getElementById('tarjetaForm').style.display = 'none';
+  document.getElementById('tarjetaRecibo').style.display = '';
+  var extra = '';
+  if(r.devolucion>0) extra += '<div class="ticket-row"><span class="lbl">Devolución</span><span class="val">'+fmt(r.devolucion)+'</span></div>';
+  if(r.descuento>0) extra += '<div class="ticket-row"><span class="lbl">Descuento</span><span class="val">'+fmt(r.descuento)+'</span></div>';
+  document.getElementById('ticketHTML').innerHTML =
+    '<div class="ticket-head"><div class="agro">AGROSIN</div><div class="tit">Comprobante de Cobro</div></div>'+
+    '<div class="ticket-body">'+
+      '<div class="ticket-row"><span class="lbl">Folio recibo</span><span class="val">'+r.folioRecibo+'</span></div>'+
+      '<div class="ticket-row"><span class="lbl">Factura</span><span class="val">'+r.folio+'</span></div>'+
+      '<div class="ticket-row"><span class="lbl">Vendedor</span><span class="val">'+r.vendor+'</span></div>'+
+      '<div class="ticket-row"><span class="lbl">Cliente</span><span class="val">'+r.cliente+'</span></div>'+
+      '<div class="ticket-row"><span class="lbl">Fecha</span><span class="val">'+r.fecha+'</span></div>'+
+      extra+
+      '<div class="ticket-monto"><div class="n">'+fmt(r.monto)+'</div><div class="l">Monto recibido</div></div>'+
+      (r.saldoDespues>0.005 ? '<div style="text-align:center;color:var(--ora);font-weight:800;font-size:12px;margin-top:-8px;">Queda pendiente: '+fmt(r.saldoDespues)+'</div>' : '<div style="text-align:center;color:var(--verde);font-weight:800;font-size:12px;margin-top:-8px;">FACTURA LIQUIDADA ✓</div>')+
+    '</div>'+
+    '<div class="ticket-foot">Comprobante generado por el sistema de cobranza AGROSIN</div>';
+}
+function seguirCobrando(){
+  cancelarSeleccion();
+  document.getElementById('tarjetaRecibo').style.display = 'none';
+}
+function compartirWA(){
+  if(!ultimoTicket) return;
+  var texto = 'Comprobante AGROSIN — Folio '+ultimoTicket.folioRecibo+' — '+ultimoTicket.cliente+' — '+fmt(ultimoTicket.monto);
+  if(ultimoTicket.id){ (esFueraDePlanilla? db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+ultimoTicket.id) : db.ref('cobros/'+miZona+'/'+miKey+'/'+ultimoTicket.id)).update({compartido:true}); }
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+/* ── TAB 2: pendientes de depósito/entrega (solo Efectivo) ── */
+function escucharPendientes(){
+  db.ref('cobros/'+miZona+'/'+miKey).orderByChild('estado').equalTo('pendiente').on('value', function(snap){
+    pendientes = [];
+    snap.forEach(function(c){ pendientes.push(Object.assign({id:c.key}, c.val())); });
+    pendientes.sort(function(a,b){ return a.ts-b.ts; });
+    seleccion = {};
+    pendientes.forEach(function(p){ seleccion[p.id]=true; });
+    actualizarBadge();
+    if(document.getElementById('tab2').style.display !== 'none') renderPendientes();
+  });
+}
+function escucharEntregasPendientes(){
+  db.ref('entregasOficina/'+miKey).orderByChild('estado').equalTo('pendiente').on('value', function(snap){
+    entregasPendientes = [];
+    snap.forEach(function(c){ entregasPendientes.push(Object.assign({id:c.key}, c.val())); });
+    entregasPendientes.sort(function(a,b){ return a.ts-b.ts; });
+    actualizarBadge();
+    renderEntregasPendientes();
+  });
+}
+function actualizarBadge(){
+  var total = pendientes.length + entregasPendientes.length;
+  var b = document.getElementById('badgePend');
+  if(total){ b.style.display=''; b.textContent = total; } else { b.style.display='none'; }
+}
+function renderPendientes(){
+  var cont = document.getElementById('listaPendientes');
+  if(!pendientes.length){
+    cont.innerHTML = '';
+    document.getElementById('resumenSel').style.display='none';
+    document.getElementById('rutaWrap').style.display='none';
+    document.getElementById('tarjetaBanco').style.display='none';
+    document.getElementById('tarjetaOficina').style.display='none';
+    document.getElementById('sinPendientes').style.display = entregasPendientes.length ? 'none' : '';
+    return;
+  }
+  document.getElementById('sinPendientes').style.display='none';
+  cont.innerHTML = pendientes.map(function(p){
+    var on = !!seleccion[p.id];
+    return '<div class="chk-item '+(on?'':'off')+'" onclick="toggleSel(\''+p.id+'\')">'+
+      '<div class="chk-box">'+(on?'✓':'')+'</div>'+
+      '<div class="chk-txt"><div class="chk-cliente">'+p.cliente+'</div><div class="chk-meta">'+p.fecha+' · Folio '+p.folio+'</div></div>'+
+      '<div class="chk-monto">'+fmt(p.monto)+'</div>'+
+    '</div>';
+  }).join('');
+  actualizarResumen();
+}
+function toggleSel(id){ seleccion[id] = !seleccion[id]; renderPendientes(); }
+function seleccionados(){ return pendientes.filter(function(p){ return seleccion[p.id]; }); }
+function actualizarResumen(){
+  var sel = seleccionados();
+  var total = sel.reduce(function(s,p){ return s+p.monto; },0);
+  var rSel = document.getElementById('resumenSel'), rWrap = document.getElementById('rutaWrap');
+  if(sel.length){
+    rSel.style.display=''; document.getElementById('resumenValor').textContent = fmt(total)+' ('+sel.length+')';
+    rWrap.style.display='';
+    document.getElementById('inpMontoReal').value = total.toFixed(2);
+  } else {
+    rSel.style.display='none'; rWrap.style.display='none';
+    document.getElementById('tarjetaBanco').style.display='none';
+    document.getElementById('tarjetaOficina').style.display='none';
+  }
+}
+function elegirRuta(r){
+  rutaActual = r;
+  document.getElementById('rutaBanco').classList.toggle('act', r==='banco');
+  document.getElementById('rutaOficina').classList.toggle('act', r==='oficina');
+  document.getElementById('tarjetaBanco').style.display = r==='banco' ? '' : 'none';
+  document.getElementById('tarjetaOficina').style.display = r==='oficina' ? '' : 'none';
+  if(r==='banco') calcularDiferencia();
+}
+document.addEventListener('input', function(e){
+  if(e.target && e.target.id === 'inpMontoReal') calcularDiferencia();
+});
+function calcularDiferencia(){
+  var sel = seleccionados();
+  var total = sel.reduce(function(s,p){ return s+p.monto; },0);
+  var real = parseFloat(document.getElementById('inpMontoReal').value) || 0;
+  var diff = real - total;
+  var box = document.getElementById('diffBox');
+  if(Math.abs(diff) < 0.005){
+    box.innerHTML = '<div class="diff-box ok">✓ El monto coincide exacto con lo cobrado.</div>';
+  } else if(diff < 0){
+    box.innerHTML = '<div class="diff-box warn">⚠️ Falta '+fmt(Math.abs(diff))+' por depositar. Se agrega a tus pendientes para entregarlo después en oficina.</div>';
+  } else {
+    box.innerHTML = '<div class="diff-box warn">⚠️ Depositaste '+fmt(diff)+' de más — se guarda como ajuste, no afecta tu avance.</div>';
+  }
+}
+function confirmarDeposito(){
+  var sel = seleccionados();
+  if(!sel.length){ toast('Selecciona al menos un pendiente','err'); return; }
+  var banco = document.getElementById('selBancoDep').value;
+  var tipo = document.getElementById('selTipoDep').value;
+  var total = sel.reduce(function(s,p){ return s+p.monto; },0);
+  var real = parseFloat(document.getElementById('inpMontoReal').value) || total;
+  var diferencia = +(real-total).toFixed(2);
+  var hayFaltante = diferencia < -0.005;
+
+  var deposito = {
+    vendor: miNombre, key: miKey, zona: miZona, banco: banco, tipo: tipo,
+    totalCobrado: total, montoReal: real, diferencia: diferencia,
+    ts: Date.now(), cobroIds: sel.map(function(p){ return p.id; })
+  };
+
+  db.ref('depositos/'+miKey).push(deposito).then(function(refD){
+    var updates = {};
+    sel.forEach(function(p){
+      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/estado'] = 'confirmado';
+      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/rutaFinal'] = 'banco';
+      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/depositoId'] = refD.key;
+    });
+    var cadena = db.ref().update(updates);
+    if(hayFaltante){
+      cadena = cadena.then(function(){
+        return db.ref('entregasOficina/'+miKey).push({
+          vendor: miNombre, key: miKey, zona: miZona,
+          totalCobrado: Math.abs(diferencia), tipo: 'faltante_redondeo',
+          estado: 'pendiente', depositoId: refD.key, ts: Date.now()
+        });
+      });
+    }
+    return cadena;
+  }).then(function(){
+    toast(hayFaltante ? 'Depósito confirmado — faltante agregado a pendientes ✓' : 'Depósito confirmado ✓', 'ok');
+    document.getElementById('tarjetaBanco').style.display='none';
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+function registrarPendienteOficina(){
+  var sel = seleccionados();
+  if(!sel.length){ toast('Selecciona al menos un pendiente','err'); return; }
+  var total = sel.reduce(function(s,p){ return s+p.monto; },0);
+  var entrega = {
+    vendor: miNombre, key: miKey, zona: miZona,
+    totalCobrado: total, tipo: 'completa', estado: 'pendiente',
+    ts: Date.now(), cobroIds: sel.map(function(p){ return p.id; })
+  };
+  db.ref('entregasOficina/'+miKey).push(entrega).then(function(refE){
+    var updates = {};
+    sel.forEach(function(p){
+      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/estado'] = 'en_transito_oficina';
+      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/entregaId'] = refE.key;
+    });
+    return db.ref().update(updates);
+  }).then(function(){
+    toast('Se agregó a tus pendientes — complétalo en la oficina','ok');
+    document.getElementById('tarjetaOficina').style.display='none';
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+function renderEntregasPendientes(){
+  var cont = document.getElementById('entregasPendientesWrap');
+  cont.innerHTML = entregasPendientes.map(function(e){
+    var titulo = e.tipo==='faltante_redondeo' ? 'Faltante por entregar en oficina' : 'Entrega completa en oficina';
+    var opciones = PERSONAL_OFICINA.map(function(n){ return '<option>'+n+'</option>'; }).join('');
+    return '<div class="entrega-pend" data-id="'+e.id+'" onclick="toggleEntregaPend(\''+e.id+'\')">'+
+      '<div class="fila-cerrada"><div class="titulo-pend">'+titulo+'</div><div class="monto-pend">'+fmt(e.totalCobrado)+'</div></div>'+
+      '<div class="fila-abierta" id="abierta_'+e.id+'" style="display:none;">'+
+        '<div class="fila-campos">'+
+          '<select id="quien_'+e.id+'" onclick="event.stopPropagation()"><option value="">¿Quién te lo recibe?</option>'+opciones+'</select>'+
+          '<input type="password" id="pin_'+e.id+'" maxlength="4" placeholder="PIN" inputmode="numeric" onclick="event.stopPropagation()">'+
+        '</div>'+
+        '<div class="err-pend" id="err_'+e.id+'" style="display:none;">Falta elegir quién o el PIN es incorrecto</div>'+
+        '<button type="button" class="btn-reg" style="padding:12px;font-size:14px;" onclick="event.stopPropagation();confirmarEntregaPendiente(\''+e.id+'\')">Confirmar entrega</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function toggleEntregaPend(id){
+  var el = document.getElementById('abierta_'+id);
+  if(!el) return;
+  el.style.display = (el.style.display!=='none') ? 'none' : '';
+}
+function confirmarEntregaPendiente(id){
+  var quien = document.getElementById('quien_'+id).value;
+  var pin = document.getElementById('pin_'+id).value.trim();
+  var err = document.getElementById('err_'+id);
+  db.ref('config/pinOficina').once('value').then(function(snap){
+    var pinValido = snap.val() || '1234'; // valor por defecto si nunca se configuró
+    if(!quien || pin !== pinValido){ err.style.display=''; return; }
+    err.style.display='none';
+    var entrega = entregasPendientes.find(function(e){ return e.id===id; });
+    if(!entrega) return;
+    db.ref('entregasOficina/'+miKey+'/'+id).update({estado:'confirmado', recibidoPor:quien, confirmadoTs:Date.now()})
+      .then(function(){
+        if(entrega.tipo!=='completa' || !entrega.cobroIds || !entrega.cobroIds.length) return;
+        var updates = {};
+        entrega.cobroIds.forEach(function(cid){ updates['cobros/'+miZona+'/'+miKey+'/'+cid+'/estado'] = 'confirmado'; });
+        return db.ref().update(updates);
+      }).then(function(){ toast('Entrega confirmada ✓','ok'); })
+      .catch(function(e){ toast('Error: '+e.message,'err'); });
+  });
+}
+
+/* ── Cierre del día: bloquea si hay efectivo sin ficha de depósito/entrega ── */
+function cerrarMiDia(){
+  var faltan = pendientes.length;
+  if(faltan > 0){
+    toast('No puedes cerrar: tienes '+faltan+' cobro(s) en efectivo sin depositar o entregar','err');
+    return;
+  }
+  if(entregasPendientes.length > 0){
+    toast('No puedes cerrar: tienes entregas de oficina sin confirmar','err');
+    return;
+  }
+  toast('✅ Tu día está limpio — ya puedes irte tranquilo','ok');
+}
+</script>
+</body>
+</html>
