@@ -507,7 +507,10 @@ function mostrarFormularioCobro(){
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
   document.getElementById('selDescuentoPct').value = '0';
-  document.getElementById('descuentoFijoAviso').style.display = 'none';
+  document.getElementById('selDescuentoPct').disabled = true; // se habilita solo si el cliente tiene % autorizado
+  document.getElementById('descuentoFijoAviso').style.display = '';
+  document.getElementById('descuentoFijoAviso').style.color = 'var(--gris)';
+  document.getElementById('descuentoFijoAviso').textContent = 'Consultando si este cliente tiene descuento autorizado…';
   document.getElementById('chkDevolucion').checked = false;
   document.getElementById('bloqueDevolucion').style.display = 'none';
   elegirTipo('Efectivo');
@@ -516,21 +519,37 @@ function mostrarFormularioCobro(){
   buscarDescuentoFijoDelCliente();
 }
 
-/* ── Si este cliente tiene un % de descuento fijo cargado (Excel de descuentos), lo propone solo ── */
+/* ── Si este cliente tiene un % de descuento fijo cargado (Excel de descuentos), lo propone solo.
+     Si NO tiene, el selector queda DESHABILITADO — nadie puede regalar descuento sin autorización. ── */
 function buscarDescuentoFijoDelCliente(){
-  if(!facturaSel || !facturaSel.clave) return;
+  var sel = document.getElementById('selDescuentoPct');
+  var aviso = document.getElementById('descuentoFijoAviso');
+  if(!facturaSel || !facturaSel.clave){
+    sel.value = '0'; sel.disabled = true;
+    aviso.style.display = ''; aviso.style.color = 'var(--gris)';
+    aviso.textContent = 'Sin clave de cliente registrada — este cobro no puede llevar descuento.';
+    recalcular();
+    return;
+  }
   db.ref('descuentosClientes/'+String(facturaSel.clave).trim()).once('value').then(function(snap){
     var d = snap.val();
-    var aviso = document.getElementById('descuentoFijoAviso');
     if(d && d.pct){
-      document.getElementById('selDescuentoPct').value = String(d.pct);
-      aviso.style.display = '';
-      aviso.textContent = '✓ Este cliente tiene '+d.pct+'% de descuento fijo — ya viene seleccionado, puedes cambiarlo si hace falta';
-      recalcular();
+      sel.disabled = false;
+      sel.value = String(d.pct);
+      aviso.style.display = ''; aviso.style.color = 'var(--verde)';
+      aviso.textContent = '✓ Este cliente tiene '+d.pct+'% de descuento autorizado — ya viene seleccionado, puedes ajustarlo si hace falta';
     } else {
-      aviso.style.display = 'none';
+      sel.value = '0'; sel.disabled = true;
+      aviso.style.display = ''; aviso.style.color = 'var(--ora)';
+      aviso.textContent = '⚠️ Este cliente no tiene descuento autorizado — no se puede aplicar en este cobro.';
     }
-  }).catch(function(){ /* si falla la consulta, simplemente no se propone nada, no bloquea el cobro */ });
+    recalcular();
+  }).catch(function(){
+    sel.value = '0'; sel.disabled = true;
+    aviso.style.display = ''; aviso.style.color = 'var(--gris)';
+    aviso.textContent = 'No se pudo consultar el descuento — se cobra sin descuento por seguridad.';
+    recalcular();
+  });
 }
 function cancelarSeleccion(){
   facturaSel = null; esFueraDePlanilla = false;
