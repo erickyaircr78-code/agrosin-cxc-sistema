@@ -178,6 +178,26 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         <button type="button" class="btn-secundario" onclick="abrirCobroFueraPlanilla()">➕ Cobro fuera de planilla (cliente adelantó un pago)</button>
       </div>
 
+      <div class="tarjeta" id="tarjetaFueraPlanilla" style="display:none;">
+        <div class="tarjeta-titulo">➕ Cobro fuera de planilla</div>
+        <div style="font-size:11px;color:var(--gris);margin-bottom:12px;line-height:1.5;">Para cuando el cliente adelanta un pago de una factura que no está en tu planilla de hoy.</div>
+        <div class="campo">
+          <label>Folio de la factura</label>
+          <input type="text" id="inpFPFolio" placeholder="Ej. AG0044947" oninput="validarFueraPlanilla()">
+        </div>
+        <div class="campo">
+          <label>Nombre del cliente</label>
+          <input type="text" id="inpFPNombre" placeholder="Nombre y apellido" oninput="validarFueraPlanilla()">
+        </div>
+        <div class="campo">
+          <label>Monto total de la factura ($)</label>
+          <input type="number" id="inpFPTotal" placeholder="0.00" min="0" step="0.01" oninput="validarFueraPlanilla()">
+        </div>
+        <div id="errFueraPlanilla" style="display:none;font-size:12px;font-weight:800;color:var(--rojo);margin-bottom:8px;"></div>
+        <button type="button" class="btn-reg" id="btnContinuarFP" onclick="continuarFueraPlanilla()" disabled><span>➡️</span> Continuar con este cobro</button>
+        <button type="button" class="btn-secundario" onclick="cancelarFueraPlanilla()">Cancelar</button>
+      </div>
+
       <!-- Paso B: factura seleccionada + formulario de cobro -->
       <div class="tarjeta" id="tarjetaForm" style="display:none;">
         <div class="fact-sel" id="factSelBox"></div>
@@ -215,8 +235,12 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         </div>
 
         <div class="campo" id="bloqueDescuentoPct">
-          <label>Descuento del cliente (automático)</label>
+          <label>Descuento del cliente</label>
           <div id="infoDescuentoPct" style="padding:15px 14px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;font-weight:800;font-size:14px;color:var(--gris);">Consultando…</div>
+          <div class="toggle-desc" id="toggleAplicarDescuento" style="display:none;" onclick="toggleAplicarDescuento()">
+            <input type="checkbox" id="chkAplicarDescuento" onclick="event.stopPropagation();toggleAplicarDescuento(true)">
+            <span id="lblAplicarDescuento">Aplicar este descuento en este cobro</span>
+          </div>
         </div>
 
         <div class="campo" id="bloqueMontoAbono" style="display:none;">
@@ -475,15 +499,47 @@ function seleccionarFactura(folio){
   esFueraDePlanilla = false;
   mostrarFormularioCobro();
 }
+/* ── Cobro fuera de planilla: formulario real con validación (ya no ventanas prompt) ── */
+var RE_FOLIO_FP = /^[A-Za-z]{1,4}\d{4,8}$/;
+function nombreValidoFP(n){
+  n = String(n||'').trim();
+  return n.indexOf(' ') > 0 && /[aeiouáéíóúAEIOUÁÉÍÓÚ]/.test(n);
+}
 function abrirCobroFueraPlanilla(){
-  var folio = prompt('Folio de la factura (el que trae el cliente):');
-  if(!folio || !folio.trim()) return;
-  var nombre = prompt('Nombre del cliente:');
-  if(!nombre || !nombre.trim()) return;
-  var total = parseFloat(prompt('Monto total de esa factura (según el cliente):'));
-  if(!total || total<=0){ toast('Monto inválido','err'); return; }
-  facturaSel = {folio: folio.trim().toUpperCase(), nombre: nombre.trim(), saldo: total, total: total, vencimiento: '—'};
+  document.getElementById('tarjetaBuscar').style.display = 'none';
+  document.getElementById('tarjetaFueraPlanilla').style.display = '';
+  document.getElementById('inpFPFolio').value = '';
+  document.getElementById('inpFPNombre').value = '';
+  document.getElementById('inpFPTotal').value = '';
+  document.getElementById('errFueraPlanilla').style.display = 'none';
+  document.getElementById('btnContinuarFP').disabled = true;
+}
+function cancelarFueraPlanilla(){
+  document.getElementById('tarjetaFueraPlanilla').style.display = 'none';
+  document.getElementById('tarjetaBuscar').style.display = '';
+}
+function validarFueraPlanilla(){
+  var folio = document.getElementById('inpFPFolio').value.trim().toUpperCase();
+  var nombre = document.getElementById('inpFPNombre').value.trim();
+  var total = parseFloat(document.getElementById('inpFPTotal').value) || 0;
+  var err = document.getElementById('errFueraPlanilla');
+  var btn = document.getElementById('btnContinuarFP');
+  var mensajes = [];
+  if(folio && !RE_FOLIO_FP.test(folio)) mensajes.push('El folio debe verse como AG0044947 (letras + números)');
+  if(nombre && !nombreValidoFP(nombre)) mensajes.push('Escribe nombre y apellido del cliente');
+  var completo = folio && nombre && total>0 && !mensajes.length;
+  if(mensajes.length){ err.style.display=''; err.textContent = mensajes.join(' · '); }
+  else { err.style.display='none'; }
+  btn.disabled = !completo;
+}
+function continuarFueraPlanilla(){
+  var folio = document.getElementById('inpFPFolio').value.trim().toUpperCase();
+  var nombre = document.getElementById('inpFPNombre').value.trim();
+  var total = parseFloat(document.getElementById('inpFPTotal').value) || 0;
+  if(!RE_FOLIO_FP.test(folio) || !nombreValidoFP(nombre) || total<=0){ toast('Revisa los datos','err'); return; }
+  facturaSel = {folio: folio, nombre: nombre, saldo: total, total: total, vencimiento: '—', clave: null};
   esFueraDePlanilla = true;
+  document.getElementById('tarjetaFueraPlanilla').style.display = 'none';
   mostrarFormularioCobro();
 }
 function mostrarFormularioCobro(){
@@ -513,8 +569,13 @@ function mostrarFormularioCobro(){
      Si el cliente tiene % autorizado, se aplica solo cuando paga completo.
      Si no tiene, queda en 0% sin ninguna opción de cambiarlo. ── */
 var pctAutorizadoCliente = 0;
+var aplicarDescuento = false;
 function buscarDescuentoFijoDelCliente(){
   var info = document.getElementById('infoDescuentoPct');
+  var toggleWrap = document.getElementById('toggleAplicarDescuento');
+  var chk = document.getElementById('chkAplicarDescuento');
+  chk.checked = false; aplicarDescuento = false; toggleWrap.style.display = 'none';
+
   if(!facturaSel || !facturaSel.clave){
     pctAutorizadoCliente = 0;
     info.textContent = 'Sin clave de cliente — no aplica descuento';
@@ -530,6 +591,8 @@ function buscarDescuentoFijoDelCliente(){
       info.style.color = 'var(--verde)';
       info.style.borderColor = '#86efac';
       info.style.background = '#f0fdf4';
+      document.getElementById('lblAplicarDescuento').textContent = 'Aplicar el '+d.pct+'% en este cobro (si no, cobra completo)';
+      toggleWrap.style.display = '';
     } else {
       pctAutorizadoCliente = 0;
       info.textContent = '⚠️ Este cliente no tiene descuento autorizado';
@@ -545,10 +608,15 @@ function buscarDescuentoFijoDelCliente(){
     recalcular();
   });
 }
+function toggleAplicarDescuento(fromClick){
+  aplicarDescuento = document.getElementById('chkAplicarDescuento').checked;
+  recalcular();
+}
 function cancelarSeleccion(){
   facturaSel = null; esFueraDePlanilla = false;
   document.getElementById('tarjetaBuscar').style.display = '';
   document.getElementById('tarjetaForm').style.display = 'none';
+  document.getElementById('tarjetaFueraPlanilla').style.display = 'none';
   document.getElementById('inpBuscar').value = '';
   document.getElementById('sinResultados').style.display = 'none';
   buscarFactura(); // vuelve a pintar la lista completa de pendientes, no la deja vacía
@@ -595,7 +663,7 @@ function recalcular(){
   if(devolucion>0) filas += '<div class="calc-row"><span>Subtotal</span><span>'+fmt(subtotal)+'</span></div>';
 
   if(modoPago==='completo'){
-    var pct = pctAutorizadoCliente || 0;
+    var pct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
     var descuentoMonto = subtotal * (pct/100);
     var aCobrar = subtotal - descuentoMonto;
     if(pct>0) filas += '<div class="calc-row"><span>− Descuento ('+pct+'%)</span><span>'+fmt(descuentoMonto)+'</span></div>';
@@ -623,7 +691,7 @@ function registrarCobro(){
 
   var monto, descuento, descuentoPct, saldoDespues;
   if(modoPago === 'completo'){
-    descuentoPct = pctAutorizadoCliente || 0;
+    descuentoPct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
     descuento = subtotal * (descuentoPct/100);
     monto = subtotal - descuento;
     saldoDespues = 0; // pago completo siempre liquida la factura
@@ -686,9 +754,8 @@ function registrarCobro(){
 function mostrarRecibo(r){
   document.getElementById('tarjetaForm').style.display = 'none';
   document.getElementById('tarjetaRecibo').style.display = '';
-  var extra = '';
-  if(r.devolucion>0) extra += '<div class="ticket-row"><span class="lbl">Devolución</span><span class="val">'+fmt(r.devolucion)+'</span></div>';
-  if(r.descuento>0) extra += '<div class="ticket-row"><span class="lbl">Descuento</span><span class="val">'+fmt(r.descuento)+'</span></div>';
+  // Nota: devolución y descuento NO se muestran en este recibo — el cliente solo ve lo que pagó.
+  // El detalle completo sigue guardado en Firebase para consulta interna.
   document.getElementById('ticketHTML').innerHTML =
     '<div class="ticket-head"><div class="agro">AGROSIN</div><div class="tit">Comprobante de Cobro</div></div>'+
     '<div class="ticket-body">'+
@@ -697,7 +764,6 @@ function mostrarRecibo(r){
       '<div class="ticket-row"><span class="lbl">Vendedor</span><span class="val">'+r.vendor+'</span></div>'+
       '<div class="ticket-row"><span class="lbl">Cliente</span><span class="val">'+r.cliente+'</span></div>'+
       '<div class="ticket-row"><span class="lbl">Fecha</span><span class="val">'+r.fecha+'</span></div>'+
-      extra+
       '<div class="ticket-monto"><div class="n">'+fmt(r.monto)+'</div><div class="l">Monto recibido</div></div>'+
       (r.saldoDespues>0.005 ? '<div style="text-align:center;color:var(--ora);font-weight:800;font-size:12px;margin-top:-8px;">Queda pendiente: '+fmt(r.saldoDespues)+'</div>' : '<div style="text-align:center;color:var(--verde);font-weight:800;font-size:12px;margin-top:-8px;">FACTURA LIQUIDADA ✓</div>')+
     '</div>'+
@@ -709,7 +775,7 @@ function seguirCobrando(){
 }
 /* ---------- Generar imagen del ticket (canvas) — igual que ya funcionaba en el piloto ---------- */
 function dibujarTicketCanvas(r){
-  var W = 720, H = r.saldoDespues>0.005 || r.devolucion>0 || r.descuento>0 ? 860 : 760, esc = 2;
+  var W = 720, H = r.saldoDespues>0.005 ? 780 : 760, esc = 2;
   var cv = document.createElement('canvas');
   cv.width = W*esc; cv.height = H*esc;
   var ctx = cv.getContext('2d');
@@ -743,8 +809,7 @@ function dibujarTicketCanvas(r){
   ctx.restore();
 
   var filas = [['Folio', r.folioRecibo], ['Vendedor', r.vendor], ['Cliente', r.cliente], ['Factura', r.folio], ['Fecha', r.fecha]];
-  if(r.devolucion>0) filas.push(['Devolución', fmt(r.devolucion)]);
-  if(r.descuento>0) filas.push(['Descuento', fmt(r.descuento)]);
+  // Nota: devolución y descuento NO se muestran en el comprobante del cliente — solo internamente.
   var y = 235;
   ctx.textAlign = 'left';
   filas.forEach(function(f){
