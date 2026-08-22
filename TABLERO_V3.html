@@ -465,9 +465,13 @@ function dineroSeguro(todosCobros, k, filtroTs){
   return noEfectivo + depSeguro + entSeguro;
 }
 
+var panelActual = 'seg';
+var PANELES_CON_ALERTA_OFICINA = ['recibos','recon','oficina']; // en Seguimiento y Cartera Semanal no se muestra, es mucha información
 function irPanel(p){
+  panelActual = p;
   document.querySelectorAll('.tabAdminBtn').forEach(function(t){ t.classList.toggle('act', t.getAttribute('data-p')===p); });
   document.querySelectorAll('.panelAdmin').forEach(function(el){ el.classList.toggle('act', el.id==='panel-'+p); });
+  actualizarAlertaOficina();
 }
 var zonaActiva = 'all';
 function setZona(z, el){
@@ -508,6 +512,19 @@ db.ref('carteraSemanalMeta').on('value', function(snap){ carteraMeta = snap.val(
 
 function filtroZona(arr){ return zonaActiva==='all' ? arr : arr.filter(function(c){ return c.zona===zonaActiva; }); }
 
+var oficinaPendCache = [];
+function actualizarAlertaOficina(){
+  var alerta = document.getElementById('alertaOficina');
+  var mostrarEnEstaPestana = PANELES_CON_ALERTA_OFICINA.indexOf(panelActual) >= 0;
+  if(oficinaPendCache.length && mostrarEnEstaPestana){
+    alerta.classList.add('show');
+    document.getElementById('alertaMonto').textContent = fmt(oficinaPendCache.reduce(function(s,e){return s+(e.totalCobrado||0);},0));
+    document.getElementById('alertaSub').textContent = oficinaPendCache.length+' entrega(s) de oficina pendiente(s) de confirmar';
+  } else {
+    alerta.classList.remove('show');
+  }
+}
+
 function renderKpisYZonas(){
   var todos = filtroZona(cobrosTodos.concat(fueraPlanillaTodos));
   var cobradoHoy = todos.filter(function(c){return esHoy(c.ts);}).reduce(function(s,c){return s+(c.monto||0);},0);
@@ -521,12 +538,8 @@ function renderKpisYZonas(){
   document.getElementById('kpiPendiente').textContent = fmt(pendiente);
   document.getElementById('kpiOficinaPend').textContent = oficinaPend.length;
 
-  var alerta = document.getElementById('alertaOficina');
-  if(oficinaPend.length){
-    alerta.classList.add('show');
-    document.getElementById('alertaMonto').textContent = fmt(oficinaPend.reduce(function(s,e){return s+(e.totalCobrado||0);},0));
-    document.getElementById('alertaSub').textContent = oficinaPend.length+' entrega(s) de oficina pendiente(s) de confirmar';
-  } else { alerta.classList.remove('show'); }
+  oficinaPendCache = oficinaPend; // se guarda para poder reusarla al cambiar de pestaña
+  actualizarAlertaOficina();
 
   var todosSinFiltro = cobrosTodos.concat(fueraPlanillaTodos);
   var carteraTotalGeneral = Object.values(carteraSemanal).reduce(function(s,v){return s+(v.total||0);},0);
