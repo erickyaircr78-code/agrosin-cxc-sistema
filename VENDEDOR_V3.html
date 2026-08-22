@@ -215,16 +215,8 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         </div>
 
         <div class="campo" id="bloqueDescuentoPct">
-          <label>% Descuento (solo si paga completo)</label>
-          <select id="selDescuentoPct" onchange="recalcular()">
-            <option value="0">Sin descuento</option>
-            <option value="1">1%</option><option value="2">2%</option><option value="3">3%</option>
-            <option value="4">4%</option><option value="5">5%</option><option value="6">6%</option>
-            <option value="7">7%</option><option value="8">8%</option><option value="9">9%</option>
-            <option value="10">10%</option><option value="11">11%</option><option value="12">12%</option>
-            <option value="13">13%</option><option value="14">14%</option><option value="15">15%</option>
-          </select>
-          <div id="descuentoFijoAviso" style="display:none;font-size:11px;font-weight:800;color:var(--verde);margin-top:6px;"></div>
+          <label>Descuento del cliente (automático)</label>
+          <div id="infoDescuentoPct" style="padding:15px 14px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;font-weight:800;font-size:14px;color:var(--gris);">Consultando…</div>
         </div>
 
         <div class="campo" id="bloqueMontoAbono" style="display:none;">
@@ -506,11 +498,9 @@ function mostrarFormularioCobro(){
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
-  document.getElementById('selDescuentoPct').value = '0';
-  document.getElementById('selDescuentoPct').disabled = true; // se habilita solo si el cliente tiene % autorizado
-  document.getElementById('descuentoFijoAviso').style.display = '';
-  document.getElementById('descuentoFijoAviso').style.color = 'var(--gris)';
-  document.getElementById('descuentoFijoAviso').textContent = 'Consultando si este cliente tiene descuento autorizado…';
+  pctAutorizadoCliente = 0;
+  document.getElementById('infoDescuentoPct').textContent = 'Consultando…';
+  document.getElementById('infoDescuentoPct').style.color = 'var(--gris)';
   document.getElementById('chkDevolucion').checked = false;
   document.getElementById('bloqueDevolucion').style.display = 'none';
   elegirTipo('Efectivo');
@@ -519,35 +509,39 @@ function mostrarFormularioCobro(){
   buscarDescuentoFijoDelCliente();
 }
 
-/* ── Si este cliente tiene un % de descuento fijo cargado (Excel de descuentos), lo propone solo.
-     Si NO tiene, el selector queda DESHABILITADO — nadie puede regalar descuento sin autorización. ── */
+/* ── Descuento del cliente: NO es editable por el vendedor — es 100% informativo.
+     Si el cliente tiene % autorizado, se aplica solo cuando paga completo.
+     Si no tiene, queda en 0% sin ninguna opción de cambiarlo. ── */
+var pctAutorizadoCliente = 0;
 function buscarDescuentoFijoDelCliente(){
-  var sel = document.getElementById('selDescuentoPct');
-  var aviso = document.getElementById('descuentoFijoAviso');
+  var info = document.getElementById('infoDescuentoPct');
   if(!facturaSel || !facturaSel.clave){
-    sel.value = '0'; sel.disabled = true;
-    aviso.style.display = ''; aviso.style.color = 'var(--gris)';
-    aviso.textContent = 'Sin clave de cliente registrada — este cobro no puede llevar descuento.';
+    pctAutorizadoCliente = 0;
+    info.textContent = 'Sin clave de cliente — no aplica descuento';
+    info.style.color = 'var(--gris)';
     recalcular();
     return;
   }
   db.ref('descuentosClientes/'+String(facturaSel.clave).trim()).once('value').then(function(snap){
     var d = snap.val();
     if(d && d.pct){
-      sel.disabled = false;
-      sel.value = String(d.pct);
-      aviso.style.display = ''; aviso.style.color = 'var(--verde)';
-      aviso.textContent = '✓ Este cliente tiene '+d.pct+'% de descuento autorizado — ya viene seleccionado, puedes ajustarlo si hace falta';
+      pctAutorizadoCliente = d.pct;
+      info.textContent = '✓ '+d.pct+'% autorizado para este cliente';
+      info.style.color = 'var(--verde)';
+      info.style.borderColor = '#86efac';
+      info.style.background = '#f0fdf4';
     } else {
-      sel.value = '0'; sel.disabled = true;
-      aviso.style.display = ''; aviso.style.color = 'var(--ora)';
-      aviso.textContent = '⚠️ Este cliente no tiene descuento autorizado — no se puede aplicar en este cobro.';
+      pctAutorizadoCliente = 0;
+      info.textContent = '⚠️ Este cliente no tiene descuento autorizado';
+      info.style.color = 'var(--ora)';
+      info.style.borderColor = '#fed7aa';
+      info.style.background = '#fff7ed';
     }
     recalcular();
   }).catch(function(){
-    sel.value = '0'; sel.disabled = true;
-    aviso.style.display = ''; aviso.style.color = 'var(--gris)';
-    aviso.textContent = 'No se pudo consultar el descuento — se cobra sin descuento por seguridad.';
+    pctAutorizadoCliente = 0;
+    info.textContent = 'No se pudo consultar — se cobra sin descuento por seguridad';
+    info.style.color = 'var(--gris)';
     recalcular();
   });
 }
@@ -577,8 +571,6 @@ function elegirModo(m){
   document.getElementById('modoAbono').classList.toggle('act', m==='abono');
   document.getElementById('bloqueDescuentoPct').style.display = (m==='completo') ? '' : 'none';
   document.getElementById('bloqueMontoAbono').style.display = (m==='abono') ? '' : 'none';
-  if(m==='completo'){ document.getElementById('selDescuentoPct').value = document.getElementById('selDescuentoPct').value || '0'; }
-  else { document.getElementById('selDescuentoPct').value = '0'; }
   recalcular();
 }
 function toggleDevolucion(fromClick){
@@ -603,7 +595,7 @@ function recalcular(){
   if(devolucion>0) filas += '<div class="calc-row"><span>Subtotal</span><span>'+fmt(subtotal)+'</span></div>';
 
   if(modoPago==='completo'){
-    var pct = parseInt(document.getElementById('selDescuentoPct').value)||0;
+    var pct = pctAutorizadoCliente || 0;
     var descuentoMonto = subtotal * (pct/100);
     var aCobrar = subtotal - descuentoMonto;
     if(pct>0) filas += '<div class="calc-row"><span>− Descuento ('+pct+'%)</span><span>'+fmt(descuentoMonto)+'</span></div>';
@@ -631,7 +623,7 @@ function registrarCobro(){
 
   var monto, descuento, descuentoPct, saldoDespues;
   if(modoPago === 'completo'){
-    descuentoPct = parseInt(document.getElementById('selDescuentoPct').value) || 0;
+    descuentoPct = pctAutorizadoCliente || 0;
     descuento = subtotal * (descuentoPct/100);
     monto = subtotal - descuento;
     saldoDespues = 0; // pago completo siempre liquida la factura
