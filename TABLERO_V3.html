@@ -109,6 +109,75 @@ input[type=file]{display:none;}
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--ink);color:#fff;padding:12px 22px;border-radius:6px;font-size:12px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;max-width:88vw;text-align:center;font-family:'IBM Plex Sans',sans-serif;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast.ok{background:var(--grn);} .toast.err{background:var(--red);}
+
+/* ── Resumen por banco (colapsable) ── */
+.btabs{display:flex;border-bottom:1px solid var(--brd);}
+.btab{padding:9px 18px;font-size:11px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;color:var(--ink3);}
+.btab.act{color:var(--acc);border-bottom-color:var(--acc);}
+.btbl{width:100%;border-collapse:collapse;font-size:11px;}
+.btbl th{background:var(--ink);color:rgba(255,255,255,.75);padding:7px 10px;text-align:left;font-size:9px;font-weight:600;font-family:'IBM Plex Mono',monospace;letter-spacing:.5px;}
+.btbl td{padding:7px 10px;border-bottom:1px solid var(--brd);}
+.bbar-w{display:flex;align-items:center;gap:5px;}
+.bbar-bg{flex:1;height:4px;background:var(--brd);border-radius:4px;overflow:hidden;min-width:36px;}
+.bbar-fill{height:100%;border-radius:4px;}
+.bpct{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);min-width:28px;text-align:right;}
+.bbadge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.bb-in{background:#dbeafe;color:#1e40af;}.bb-az{background:#fef3c7;color:#92400e;}.bb-bn{background:#dcfce7;color:#166534;}.bb-bv{background:#ede9fe;color:#4c1d95;}.bb-sc{background:#fce7f3;color:#9d174d;}.bb-bm{background:#fff7ed;color:#9a3412;}.bb-sa{background:#f0fdf4;color:#14532d;}.bb-br{background:#fef2f2;color:#991b1b;}.bb-ot{background:var(--str);color:var(--ink3);}
+
+/* ── Capturas en tiempo real (log) ── */
+.lpnl{background:var(--sur);border:1px solid var(--brd);border-radius:8px;box-shadow:var(--shd);margin-top:16px;overflow:hidden;}
+.lhdr{background:#f0f7ff;border-bottom:1px solid #bfdbfe;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+.lttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--acc);}
+.lhr{display:grid;grid-template-columns:150px 100px 100px 110px 1fr;padding:5px 18px;gap:6px;background:#e8f0fe;border-bottom:1px solid #bfdbfe;font-size:9px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1px;}
+.lbody{max-height:240px;overflow-y:auto;}
+.lrow{display:grid;grid-template-columns:150px 100px 100px 110px 1fr;padding:7px 18px;gap:6px;border-bottom:1px solid var(--brd);font-size:11px;align-items:center;}
+.lrow:last-child{border-bottom:none;}
+.lv{font-weight:700;color:var(--ink);}
+.la{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--grn);}
+.lt{color:var(--ink2);}
+.lts{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3);}
+
+/* ── Historial semanal ── */
+.hpnl{background:var(--sur);border:1px solid var(--brd);border-radius:8px;box-shadow:var(--shd);margin-top:16px;overflow:hidden;}
+.hhdr{background:#f0f4ff;border-bottom:1px solid #c7d5f8;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+.httl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#3730a3;}
+.hbody{max-height:480px;overflow-y:auto;}
+.hsem{border-bottom:2px solid var(--brd2);}
+.hsem-hdr{background:#eef2ff;padding:9px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.hsem-hdr:hover{background:#e0e7ff;}
+.hsem-ttl{font-size:11px;font-weight:700;color:#3730a3;font-family:'IBM Plex Mono',monospace;}
+.hsem-sub{font-size:10px;color:var(--ink3);}
+.hsem-body{padding:10px 18px 14px;}
+.htbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
+.htbl th{background:#1e1b4b;color:rgba(255,255,255,.8);padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;}
+.htbl td{padding:5px 8px;border-bottom:1px solid var(--brd);}
+.htbl tr:nth-child(even) td{background:var(--str);}
+.hana{background:#f8fafc;border:1px solid var(--brd);border-radius:6px;padding:10px 14px;margin-top:8px;}
+.hana-ttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ink2);margin-bottom:8px;}
+.hana-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
+.hana-item{background:var(--sur);border-radius:6px;padding:8px 10px;border:1px solid var(--brd);}
+.hana-lbl{font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.hana-val{font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+
+/* ── Notas de administrador ── */
+.npnl{background:var(--sur);border:1px solid var(--brd);border-radius:8px;box-shadow:var(--shd);margin-top:16px;overflow:hidden;}
+.nhdr{background:#fffbeb;border-bottom:1px solid #fde68a;padding:10px 18px;}
+.nttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#92600a;}
+.nbdy{padding:14px 18px;}
+.ngrd{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:12px;}
+.nc{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:9px 12px;}
+.ncv{font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#92600a;margin-bottom:3px;}
+.nct{color:var(--ink2);font-size:12px;line-height:1.5;}
+.ncf{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+.ncts{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3);}
+.ncd{background:none;border:none;color:var(--ink3);cursor:pointer;font-size:12px;}
+.ncd:hover{color:var(--red);}
+.nadd{display:flex;gap:8px;flex-wrap:wrap;}
+.nsl,.nin{padding:6px 10px;border:1px solid var(--brd2);border-radius:4px;font-size:11px;font-family:'IBM Plex Sans',sans-serif;outline:none;}
+.nsl{width:180px;}.nin{flex:1;min-width:200px;}
+.nsl:focus,.nin:focus{border-color:var(--acc);}
+.nabt{padding:6px 14px;border-radius:4px;border:none;background:#92600a;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+.nabt:hover{background:#7a4f08;}
 </style>
 </head>
 <body>
@@ -121,6 +190,8 @@ input[type=file]{display:none;}
   <div class="tb-r">
     <div class="cbx"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="wk" id="wk">—</div>
+    <button type="button" class="btnTop" style="background:#1a56db;border-color:#1a56db;color:#fff;" onclick="exportarGeneral()">⬇ Excel</button>
+    <button type="button" class="btnTop" onclick="confirmarNuevaSemana()">↺ Cerrar semana</button>
     <button type="button" class="btnTopRojo btnTop" onclick="borrarPruebasTablero()">🗑 Borrar pruebas</button>
   </div>
 </div>
@@ -171,6 +242,53 @@ input[type=file]{display:none;}
           </tr></thead>
           <tbody id="tbodySeg"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ── Resumen por banco ── -->
+    <div class="bpnl" style="margin-top:16px;">
+      <div class="bhdr" onclick="toggleBpnl(this)">
+        <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:20px;">🏦</span><span class="bttl">Resumen por Banco (depósitos confirmados)</span><span id="bbadge-count" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:2px 10px;font-size:10px;color:#fff;font-family:'IBM Plex Mono',monospace;font-weight:700;">—</span><span style="font-size:10px;color:rgba(255,255,255,.6);">👆 clic para expandir</span></div>
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div style="text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px;">Hoy</div><div id="bttl-hoy" style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:#86efac;">—</div></div>
+          <div style="width:1px;height:28px;background:rgba(255,255,255,.2);"></div>
+          <div style="text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px;margin-bottom:1px;">Semana</div><div id="bttl-sem" style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:#fff;">—</div></div>
+          <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:5px;"><span id="bchevron" style="font-size:13px;color:#fff;">▼</span><span style="font-size:10px;color:rgba(255,255,255,.8);font-weight:600;">VER</span></div>
+        </div>
+      </div>
+      <div id="bpnl-body" style="display:none;">
+        <div class="btabs"><div class="btab act" id="btabBancos" onclick="setBTab('bancos')">Por banco</div><div class="btab" id="btabVend" onclick="setBTab('vendedores')">Por vendedor</div></div>
+        <div class="bkpis" id="bkpis" style="padding:14px 18px 0;"></div>
+        <div style="padding:14px 18px 16px;"><div id="bpanel-bancos" class="bpanel show" style="padding:0;"></div><div id="bpanel-vendedores" class="bpanel" style="padding:0;display:none;"></div></div>
+      </div>
+    </div>
+
+    <!-- ── Capturas en tiempo real ── -->
+    <div class="lpnl">
+      <div class="lhdr">
+        <div class="lttl">📨 Capturas en tiempo real</div>
+        <span style="font-size:10px;color:var(--acc)">Depósitos confirmados — dinero ya en el banco</span>
+      </div>
+      <div class="lhr"><span>Vendedor</span><span>Banco</span><span>Monto</span><span>Tipo</span><span>Hora</span></div>
+      <div class="lbody" id="lbody"><div class="remp">Esperando depósitos confirmados…</div></div>
+    </div>
+
+    <!-- ── Historial semanal ── -->
+    <div class="hpnl" id="hpnl">
+      <div class="hhdr"><div class="httl">📅 Historial Semanal</div><span style="font-size:10px;color:#3730a3">Registro acumulado semana a semana</span></div>
+      <div class="hbody" id="hbody"><div class="remp">Sin semanas guardadas aún.</div></div>
+    </div>
+
+    <!-- ── Notas de administrador ── -->
+    <div class="npnl">
+      <div class="nhdr"><div class="nttl">📋 Notas de administrador</div></div>
+      <div class="nbdy">
+        <div class="ngrd" id="ngrd"><div style="color:var(--ink3);font-size:12px;grid-column:1/-1;">Sin notas.</div></div>
+        <div class="nadd">
+          <select class="nsl" id="nsl"></select>
+          <input class="nin" id="nin" placeholder="Escribe una nota…" onkeydown="if(event.key==='Enter')addNota()">
+          <button type="button" class="nabt" onclick="addNota()">+ Agregar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -334,6 +452,8 @@ var carteraSemanal = {}, carteraMeta = null;
 
 function refrescarTodo(){
   renderKpisYZonas(); renderSeguimiento(); renderRecibos(); renderReconciliacion(); renderOficina();
+  if(document.getElementById('bpnl-body') && document.getElementById('bpnl-body').style.display!=='none') renderBancos();
+  renderLog();
 }
 ['CDMX','MORELOS','PUEBLA'].forEach(function(z){
   db.ref('cobros/'+z).on('value', function(snap){
@@ -574,6 +694,244 @@ function renderCarteraActual(){
   box.innerHTML = '<div class="bkpis"><div class="bkpi"><div class="lbl">Última actualización</div><div class="val" style="font-size:13px;">'+fecha+'</div></div>'+
     '<div class="bkpi"><div class="lbl">Vendedores</div><div class="val">'+carteraMeta.totalVendedores+'</div></div>'+
     '<div class="bkpi"><div class="lbl">Total</div><div class="val">'+fmt(carteraMeta.totalCartera)+'</div></div></div>';
+}
+/* ══════════════════ RESUMEN POR BANCO ══════════════════ */
+function toggleBpnl(el){
+  var body = document.getElementById('bpnl-body');
+  var chev = document.getElementById('bchevron');
+  if(body.style.display==='none'){ body.style.display='block'; chev.textContent='▼'; renderBancos(); }
+  else { body.style.display='none'; chev.textContent='▶'; }
+}
+function setBTab(tab){
+  document.getElementById('btabBancos').classList.toggle('act', tab==='bancos');
+  document.getElementById('btabVend').classList.toggle('act', tab==='vendedores');
+  document.getElementById('bpanel-bancos').style.display = tab==='bancos' ? '' : 'none';
+  document.getElementById('bpanel-vendedores').style.display = tab==='vendedores' ? '' : 'none';
+}
+function bancoBadgeClass(b){
+  var m = {'INBURSA':'bb-in','AZTECA':'bb-az','BANORTE':'bb-bn','BBVA-9':'bb-bv','BBVA-1':'bb-bv','SCOTIABANK':'bb-sc','BANAMEX':'bb-bm','SANTANDER':'bb-sa','BANBAJIO':'bb-bn','BANREGIO':'bb-br'};
+  return m[b] || 'bb-ot';
+}
+function renderBancos(){
+  var deps = filtroZona(depositosTodos);
+  document.getElementById('bbadge-count').textContent = deps.length+' depósitos';
+  if(!deps.length){
+    document.getElementById('bpanel-bancos').innerHTML = '<div class="remp">Sin depósitos confirmados para esta zona.</div>';
+    document.getElementById('bpanel-vendedores').innerHTML = '<div class="remp">Sin depósitos confirmados para esta zona.</div>';
+    document.getElementById('bttl-hoy').textContent='$0'; document.getElementById('bttl-sem').textContent='$0'; document.getElementById('bkpis').innerHTML='';
+    return;
+  }
+  var bancos = {};
+  deps.forEach(function(d){
+    var b=(d.banco||'Sin banco').trim(), m=+d.montoReal||0, hoy=esHoy(d.ts);
+    if(!bancos[b]) bancos[b]={sem:0,hoy:0,txSem:0,txHoy:0};
+    bancos[b].sem+=m; bancos[b].txSem++;
+    if(hoy){ bancos[b].hoy+=m; bancos[b].txHoy++; }
+  });
+  var arrB = Object.keys(bancos).map(function(b){ return Object.assign({b:b}, bancos[b]); }).sort(function(a,b){return b.sem-a.sem;});
+  var totSem = arrB.reduce(function(s,x){return s+x.sem;},0);
+  var totHoy = arrB.reduce(function(s,x){return s+x.hoy;},0);
+  document.getElementById('bttl-hoy').textContent = fmtM(totHoy);
+  document.getElementById('bttl-sem').textContent = fmtM(totSem);
+  document.getElementById('bkpis').innerHTML =
+    '<div class="bkpi"><div class="lbl">Total hoy</div><div class="val" style="color:var(--grn)">'+fmtM(totHoy)+'</div></div>'+
+    '<div class="bkpi"><div class="lbl">Acumulado semana</div><div class="val" style="color:var(--acc)">'+fmtM(totSem)+'</div></div>'+
+    '<div class="bkpi"><div class="lbl">Banco líder</div><div class="val" style="font-size:13px;">'+(arrB[0]?arrB[0].b:'—')+'</div></div>';
+  var maxSem = arrB[0] ? arrB[0].sem : 1;
+  document.getElementById('bpanel-bancos').innerHTML = '<table class="btbl"><thead><tr><th>Banco</th><th class="tn">Hoy</th><th class="tn">Dep. hoy</th><th class="tn">Semana</th><th class="tn">Dep. semana</th><th>Participación</th></tr></thead><tbody>'+
+    arrB.map(function(x){
+      var p = totSem>0 ? Math.round((x.sem/totSem)*100) : 0;
+      var bc = x.sem/maxSem>=0.5?'#0d7a4e':x.sem/maxSem>=0.2?'#1a56db':'#8a97a8';
+      return '<tr><td><span class="bbadge '+bancoBadgeClass(x.b)+'">'+x.b+'</span></td><td class="tn" style="color:var(--grn)">'+(x.hoy>0?fmt(x.hoy):'—')+'</td><td class="tn">'+(x.txHoy||'—')+'</td><td class="tn" style="color:var(--acc)">'+fmt(x.sem)+'</td><td class="tn">'+x.txSem+'</td><td><div class="bbar-w"><div class="bbar-bg"><div class="bbar-fill" style="width:'+p+'%;background:'+bc+'"></div></div><span class="bpct">'+p+'%</span></div></td></tr>';
+    }).join('')+'</tbody></table>';
+  var vendedores = {};
+  deps.forEach(function(d){
+    var v=(d.vendor||'').trim(), b=(d.banco||'Sin banco').trim(), m=+d.montoReal||0, hoy=esHoy(d.ts);
+    if(!vendedores[v]) vendedores[v]={bancos:{},totSem:0,totHoy:0,txSem:0};
+    if(!vendedores[v].bancos[b]) vendedores[v].bancos[b]={sem:0};
+    vendedores[v].bancos[b].sem+=m; vendedores[v].totSem+=m; vendedores[v].txSem++;
+    if(hoy) vendedores[v].totHoy+=m;
+  });
+  var arrV = Object.keys(vendedores).map(function(v){
+    var d=vendedores[v]; var ba=Object.keys(d.bancos).sort(function(a,b){return d.bancos[b].sem-d.bancos[a].sem;});
+    return {v:v, principal:ba[0]||'—', bancos:ba, d:d};
+  }).sort(function(a,b){return b.d.totSem-a.d.totSem;});
+  document.getElementById('bpanel-vendedores').innerHTML = '<table class="btbl"><thead><tr><th>Vendedor</th><th>Banco principal</th><th class="tn">Hoy</th><th class="tn">Semana</th><th class="tn">Depósitos</th></tr></thead><tbody>'+
+    arrV.map(function(x){
+      return '<tr><td style="font-weight:600">'+x.v+'</td><td><span class="bbadge '+bancoBadgeClass(x.principal)+'">'+x.principal+'</span></td><td class="tn" style="color:var(--grn)">'+(x.d.totHoy>0?fmt(x.d.totHoy):'—')+'</td><td class="tn" style="color:var(--acc)">'+fmt(x.d.totSem)+'</td><td class="tn">'+x.d.txSem+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+/* ══════════════════ CAPTURAS EN TIEMPO REAL (LOG) ══════════════════ */
+function renderLog(){
+  var b = document.getElementById('lbody');
+  var deps = filtroZona(depositosTodos);
+  if(!deps.length){ b.innerHTML='<div class="remp">Esperando depósitos confirmados…</div>'; return; }
+  deps = deps.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,50);
+  b.innerHTML = deps.map(function(d){
+    var hora = new Date(d.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return '<div class="lrow"><span class="lv">'+(d.vendor||'—')+'</span><span class="lt">'+(d.banco||'—')+'</span><span class="la">'+fmt(d.montoReal||0)+'</span><span class="lt">'+(d.tipo||'—')+'</span><span class="lts">'+hora+'</span></div>';
+  }).join('');
+}
+
+/* ══════════════════ HISTORIAL SEMANAL ══════════════════ */
+function confirmarNuevaSemana(){
+  if(!confirm('¿Cerrar semana?\n\n1) Se guardará el historial de esta semana.\n2) Se borrarán los cobros, depósitos y entregas actuales (la cartera semanal NO se borra, la reemplazas tú el próximo lunes).\n\n⚠️ Asegúrate de haber descargado el Excel primero (botón "⬇ Excel" de arriba) — después de cerrar, esos datos ya no estarán disponibles en el tablero.')) return;
+  var todos = cobrosTodos.concat(fueraPlanillaTodos);
+  var vendedoresData = {};
+  var totCartera=0, totCobrado=0, activos=0;
+  Object.keys(ZONAS).forEach(function(z){
+    ZONAS[z].forEach(function(nombre){
+      var k = key(nombre);
+      var cob = todos.filter(function(c){return c.key===k;}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var cart = carteraSemanal[k]; var total = cart ? cart.total : 0;
+      var pctV = total>0 ? Math.min(100,(cob/total)*100) : 0;
+      totCartera += total; totCobrado += cob;
+      if(cob>0) activos++;
+      vendedoresData[nombre] = {zona:z, cartera:Math.round(total), cobrado:Math.round(cob), falta:Math.round(Math.max(0,total-cob)), pct:parseFloat(pctV.toFixed(1)), registros: todos.filter(function(c){return c.key===k;}).length};
+    });
+  });
+  var totalVend = Object.keys(vendedoresData).length;
+  var semKey = 'sem_'+new Date().toISOString().slice(0,10).replace(/-/g,'');
+  var semLabel = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+  var histEntry = {
+    fecha: semLabel, timestamp: Date.now(),
+    totCartera: Math.round(totCartera), totCobrado: Math.round(totCobrado),
+    pctCobrado: totCartera>0 ? parseFloat(((totCobrado/totCartera)*100).toFixed(1)) : 0,
+    vendedoresActivos: activos, vendedoresInactivos: totalVend-activos,
+    vendedores: vendedoresData
+  };
+  db.ref('historialSemanal/'+semKey).set(histEntry).then(function(){
+    return Promise.all([db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(), db.ref('depositos').remove(), db.ref('entregasOficina').remove()]);
+  }).then(function(){
+    toast('✅ Semana guardada en historial','ok'); renderHistorial();
+    setTimeout(function(){ location.reload(); }, 1500);
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+function renderHistorial(){
+  var b = document.getElementById('hbody');
+  db.ref('historialSemanal').orderByChild('timestamp').once('value').then(function(snap){
+    var sems = [];
+    snap.forEach(function(c){ sems.unshift({key:c.key, data:c.val()}); });
+    if(!sems.length){ b.innerHTML='<div class="remp">Sin semanas guardadas aún.</div>'; return; }
+    b.innerHTML = sems.map(function(s, idx){
+      var d = s.data;
+      var vArr = d.vendedores ? Object.keys(d.vendedores).map(function(k){ return Object.assign({n:k}, d.vendedores[k]); }).sort(function(a,b){return b.cobrado-a.cobrado;}) : [];
+      var inactivos = vArr.filter(function(v){return v.cobrado===0;});
+      return '<div class="hsem"><div class="hsem-hdr" onclick="toggleSem(this)"><div><span class="hsem-ttl">'+d.fecha+'</span><span class="hsem-sub" style="margin-left:12px;">Cartera: '+fmt(d.totCartera)+' · '+d.pctCobrado+'%</span></div><span style="font-size:10px;color:var(--acc)">'+(idx===0?'▼':'►')+'</span></div>'+
+        '<div class="hsem-body" style="display:'+(idx===0?'block':'none')+'"><div class="hana"><div class="hana-ttl">Resumen</div><div class="hana-grid">'+
+        '<div class="hana-item"><div class="hana-lbl">Cartera</div><div class="hana-val" style="color:var(--acc)">'+fmt(d.totCartera)+'</div></div>'+
+        '<div class="hana-item"><div class="hana-lbl">Cobrado</div><div class="hana-val" style="color:var(--grn)">'+fmt(d.totCobrado)+'</div></div>'+
+        '<div class="hana-item"><div class="hana-lbl">Avance</div><div class="hana-val" style="color:'+(d.pctCobrado>=60?'var(--grn)':d.pctCobrado>=25?'#d97706':'var(--red)')+'">'+d.pctCobrado+'%</div></div>'+
+        '<div class="hana-item"><div class="hana-lbl">Activos</div><div class="hana-val" style="color:var(--grn)">'+d.vendedoresActivos+'</div></div>'+
+        '<div class="hana-item"><div class="hana-lbl">Sin cobros</div><div class="hana-val" style="color:var(--red)">'+d.vendedoresInactivos+'</div></div></div></div>'+
+        '<table class="htbl" style="margin-top:10px;"><thead><tr><th>Vendedor</th><th>Zona</th><th>Cartera</th><th>Cobrado</th><th>%</th></tr></thead><tbody>'+
+        vArr.map(function(v){ var pc=v.pct>=60?'var(--grn)':v.pct>=25?'#d97706':'var(--red)'; return '<tr><td style="font-weight:600">'+v.n+'</td><td>'+(v.zona||'')+'</td><td class="tn">'+fmt(v.cartera)+'</td><td class="tn" style="color:var(--grn)">'+fmt(v.cobrado)+'</td><td class="tn" style="color:'+pc+'">'+v.pct+'%</td></tr>'; }).join('')+
+        '</tbody></table>'+(inactivos.length?'<div style="margin-top:8px;padding:8px 12px;background:#fee2e2;border-radius:6px;font-size:11px;color:#991b1b;"><strong>Sin cobros:</strong> '+inactivos.map(function(v){return v.n;}).join(', ')+'</div>':'')+'</div></div>';
+    }).join('');
+  });
+}
+function toggleSem(el){
+  var body = el.nextElementSibling, arrow = el.querySelector('span:last-child');
+  if(body.style.display==='none'){ body.style.display='block'; arrow.textContent='▼'; }
+  else { body.style.display='none'; arrow.textContent='►'; }
+}
+
+/* ══════════════════ NOTAS DE ADMINISTRADOR (compartidas vía Firebase) ══════════════════ */
+function poblarSelNotas(){
+  var sel = document.getElementById('nsl');
+  var opts = '<option value="">— Vendedor —</option>';
+  Object.keys(ZONAS).forEach(function(z){ ZONAS[z].forEach(function(n){ opts += '<option value="'+n+'">'+n+' ('+z+')</option>'; }); });
+  sel.innerHTML = opts;
+}
+var notasCache = {};
+db.ref('notasAdmin').on('value', function(snap){ notasCache = snap.val()||{}; renderNotas(); });
+function renderNotas(){
+  var g = document.getElementById('ngrd');
+  var lista = Object.keys(notasCache).map(function(k){ return Object.assign({id:k}, notasCache[k]); }).sort(function(a,b){return b.ts-a.ts;});
+  if(!lista.length){ g.innerHTML='<div style="color:var(--ink3);font-size:12px;grid-column:1/-1;">Sin notas.</div>'; return; }
+  g.innerHTML = lista.map(function(n){
+    var hora = new Date(n.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return '<div class="nc"><div class="ncv">'+n.vendor+'</div><div class="nct">'+n.text+'</div><div class="ncf"><span class="ncts">'+hora+'</span><button type="button" class="ncd" onclick="delNota(\''+n.id+'\')">✕</button></div></div>';
+  }).join('');
+}
+function addNota(){
+  var v = document.getElementById('nsl').value, t = document.getElementById('nin').value.trim();
+  if(!v || !t){ toast('Selecciona vendedor y escribe la nota','err'); return; }
+  db.ref('notasAdmin').push({vendor:v, text:t, ts:Date.now()}).then(function(){ document.getElementById('nin').value=''; });
+}
+function delNota(id){ db.ref('notasAdmin/'+id).remove(); }
+poblarSelNotas();
+renderHistorial();
+/* ══════════════════ EXPORTAR EXCEL GENERAL (3 hojas) ══════════════════ */
+function exportarGeneral(){
+  var todos = cobrosTodos.concat(fueraPlanillaTodos);
+  var inicioSem = inicioSemana();
+  var fecha = new Date().toISOString().slice(0,10);
+  var p0 = function(n){ return isNaN(n)||!n ? 0 : +n; };
+
+  var hdr1 = ['Vendedor','Zona','Cartera Semanal','Cobrado Semana','% Cobrado','Falta por Cobrar','# Recibos','Bancos Utilizados'];
+  var rows1 = [];
+  var totCarteraGen=0, totCobradoGen=0, totFaltaGen=0, totRecibosGen=0;
+  Object.keys(ZONAS).forEach(function(z){
+    ZONAS[z].forEach(function(nombre){
+      var k = key(nombre);
+      var misRecibos = todos.filter(function(c){return c.key===k;});
+      var cSem = misRecibos.filter(function(c){return c.ts>=inicioSem;}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var cart = carteraSemanal[k]; var total = cart?cart.total:0;
+      var falta = Math.max(0,total-cSem);
+      var pctV = total>0 ? Math.min(100,(cSem/total)*100) : 0;
+      var misDepositos = depositosTodos.filter(function(d){return d.key===k;});
+      var bancos = misDepositos.map(function(d){return (d.banco||'').trim();}).filter(function(v,i,a){return v && a.indexOf(v)===i;}).join(' | ') || (cSem>0?'Pendiente de depósito':'');
+      rows1.push([nombre, z, p0(total), p0(cSem), parseFloat(pctV.toFixed(1)), p0(falta), misRecibos.length, bancos]);
+      totCarteraGen+=total; totCobradoGen+=cSem; totFaltaGen+=falta; totRecibosGen+=misRecibos.length;
+    });
+  });
+  rows1.push([]);
+  rows1.push(['TOTAL GENERAL','', totCarteraGen, totCobradoGen, totCarteraGen>0?parseFloat(((totCobradoGen/totCarteraGen)*100).toFixed(1)):0, totFaltaGen, totRecibosGen, '']);
+
+  var hdr2 = ['Vendedor','Zona','Fecha','Cliente','Folio','Tipo','Monto','Banco','Estado','Fuera de Planilla'];
+  var rows2 = todos.slice().sort(function(a,b){ return String(a.vendor).toUpperCase().localeCompare(String(b.vendor).toUpperCase()); })
+    .map(function(r){ return [r.vendor||'—', r.zona||'—', r.fecha||'—', r.cliente||'—', r.folio||'—', r.tipo||'—', p0(r.monto), r.banco||'Efectivo', r.estado||'—', r.fueraDePlanilla?'Sí':'No']; });
+  if(!rows2.length) rows2.push(['Sin recibos','','','','','','','','','']);
+
+  var bancos3 = {};
+  depositosTodos.forEach(function(d){
+    var b=(d.banco||'Sin banco').trim();
+    if(!bancos3[b]) bancos3[b]={total:0,tx:0,vendedores:{}};
+    bancos3[b].total += (+d.montoReal||0); bancos3[b].tx++;
+    if(d.vendor) bancos3[b].vendedores[d.vendor.trim()]=true;
+  });
+  var hdr3 = ['Banco','Total Depositado (semana)','# Depósitos','Vendedores que lo usaron'];
+  var arrBancos3 = Object.keys(bancos3).map(function(b){ return {b:b, total:bancos3[b].total, tx:bancos3[b].tx, vendedores:Object.keys(bancos3[b].vendedores)}; }).sort(function(a,b){return b.total-a.total;});
+  var rows3 = arrBancos3.map(function(x){ return [x.b, p0(x.total), x.tx, x.vendedores.join(' | ')]; });
+  var totBancos3 = arrBancos3.reduce(function(s,x){return s+x.total;},0);
+  var totTx3 = arrBancos3.reduce(function(s,x){return s+x.tx;},0);
+  if(rows3.length){ rows3.push(['TOTAL', totBancos3, totTx3, '']); } else { rows3.push(['Sin depósitos confirmados','','','']); }
+
+  var wb = XLSX.utils.book_new();
+  var fmtP = '"$"#,##0.00', fmtT = '0.0"%"';
+
+  var ws1 = XLSX.utils.aoa_to_sheet([hdr1].concat(rows1));
+  ws1['!cols'] = [{wch:22},{wch:10},{wch:15},{wch:15},{wch:10},{wch:15},{wch:10},{wch:28}];
+  for(var r1=0;r1<rows1.length;r1++){
+    [2,3,5].forEach(function(ci){ var a=XLSX.utils.encode_cell({r:r1+1,c:ci}); if(ws1[a]) ws1[a].z=fmtP; });
+    var a4=XLSX.utils.encode_cell({r:r1+1,c:4}); if(ws1[a4]) ws1[a4].z=fmtT;
+  }
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumen por Vendedor');
+
+  var ws2 = XLSX.utils.aoa_to_sheet([hdr2].concat(rows2));
+  ws2['!cols'] = [{wch:22},{wch:10},{wch:14},{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:14}];
+  for(var r2=0;r2<rows2.length;r2++){ var a2=XLSX.utils.encode_cell({r:r2+1,c:6}); if(ws2[a2]) ws2[a2].z=fmtP; }
+  XLSX.utils.book_append_sheet(wb, ws2, 'Detalle de Recibos');
+
+  var ws3 = XLSX.utils.aoa_to_sheet([hdr3].concat(rows3));
+  ws3['!cols'] = [{wch:16},{wch:22},{wch:12},{wch:40}];
+  for(var r3=0;r3<rows3.length;r3++){ var a3=XLSX.utils.encode_cell({r:r3+1,c:1}); if(ws3[a3]) ws3[a3].z=fmtP; }
+  XLSX.utils.book_append_sheet(wb, ws3, 'Consolidado por Banco');
+
+  XLSX.writeFile(wb, 'AGROSIN_TABLERO_'+fecha+'.xlsx');
+  toast('✅ Excel descargado','ok');
 }
 
 refrescarTodo();
