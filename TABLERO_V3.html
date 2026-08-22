@@ -192,12 +192,12 @@ input[type=file]{display:none;}
     <div class="wk" id="wk">—</div>
     <button type="button" class="btnTop" style="background:#1a56db;border-color:#1a56db;color:#fff;" onclick="exportarGeneral()">⬇ Excel</button>
     <button type="button" class="btnTop" onclick="confirmarNuevaSemana()">↺ Cerrar semana</button>
-    <button type="button" class="btnTopRojo btnTop" onclick="borrarPruebasTablero()">🗑 Borrar pruebas</button>
+    <button type="button" class="btnTopRojo btnTop" onclick="abrirModalBorrar()">🗑 Borrar pruebas</button>
   </div>
 </div>
 
 <div class="cards">
-  <div class="card"><div class="clbl">Cobrado hoy</div><div class="cval cg" id="kpiCobradoHoy">—</div><div class="csub" id="kpiCobradoHoySub">—</div></div>
+  <div class="card"><div class="clbl">Cobrado hoy (bruto)</div><div class="cval cg" id="kpiCobradoHoy">—</div><div class="csub" id="kpiCobradoHoySub">—</div></div>
   <div class="card"><div class="clbl">Depositado hoy</div><div class="cval ca" id="kpiDepositadoHoy">—</div><div class="csub">confirmado en banco</div></div>
   <div class="card"><div class="clbl">Efectivo sin resolver</div><div class="cval co" id="kpiPendiente">—</div><div class="csub">ni depositado ni entregado</div></div>
   <div class="card"><div class="clbl">Entregas de oficina</div><div class="cval cr" id="kpiOficinaPend">—</div><div class="csub">pendientes de confirmar</div></div>
@@ -234,11 +234,12 @@ input[type=file]{display:none;}
         <option value="">Todas las zonas</option><option value="CDMX">CDMX</option><option value="MORELOS">Morelos</option><option value="PUEBLA">Puebla</option>
       </select>
     </div>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;">💡 Esta tabla solo cuenta dinero <strong>ya confirmado</strong> en la empresa (depositado o entregado en oficina) — no cuenta el efectivo que el vendedor trae en la mano sin entregar todavía.</div>
     <div class="tbl-o">
       <div class="tbl-s">
         <table>
           <thead><tr>
-            <th>Vendedor</th><th>Zona</th><th class="tn">Cartera Semanal</th><th class="tn">Cobrado Semana</th><th>Avance</th><th class="tn">Falta</th><th class="tn">Cobrado Hoy</th>
+            <th>Vendedor</th><th>Zona</th><th class="tn">Cartera Semanal</th><th class="tn">Confirmado Semana</th><th>Avance</th><th class="tn">Falta</th><th class="tn">Confirmado Hoy</th>
           </tr></thead>
           <tbody id="tbodySeg"></tbody>
         </table>
@@ -371,6 +372,16 @@ input[type=file]{display:none;}
 
 <div class="toast" id="toast"></div>
 
+<div id="modalBorrar" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:10px;max-width:380px;width:100%;padding:22px;font-family:'IBM Plex Sans',sans-serif;">
+    <div style="font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:10px;">⚠️ Borrar pruebas</div>
+    <div style="font-size:12px;color:#334155;line-height:1.5;margin-bottom:14px;">Esto borra TODOS los cobros, depósitos, entregas y cartera semanal de prueba en agrosin-cxc-sistema.<br><br>Para confirmar, escribe <strong>BORRAR</strong> abajo:</div>
+    <input type="text" id="inpConfirmarBorrar" placeholder="Escribe BORRAR" oninput="validarBorrar()" style="width:100%;padding:10px;border:2px solid #dde1e9;border-radius:6px;font-size:14px;font-weight:700;text-align:center;text-transform:uppercase;margin-bottom:12px;box-sizing:border-box;">
+    <button type="button" id="btnConfirmarBorrarModal" onclick="borrarPruebasTablero()" disabled style="width:100%;padding:11px;background:#c5cad4;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;margin-bottom:8px;cursor:pointer;">Confirmar borrado</button>
+    <button type="button" onclick="cerrarModalBorrar()" style="width:100%;padding:10px;background:#f4f6f9;color:#4a5568;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">Cancelar</button>
+  </div>
+</div>
+
 <script>
 firebase.initializeApp({
   apiKey:"AIzaSyBxWhvKsx4DL35wKxine4Av7aVM1XxetgA",
@@ -396,17 +407,31 @@ firebase.auth().onAuthStateChanged(function(u){
 /* ══════════════════════════════════════════════════════════
    ⚠️ BLOQUE TEMPORAL — SOLO PARA FASE DE PRUEBAS ⚠️
    ══════════════════════════════════════════════════════════ */
+function abrirModalBorrar(){
+  document.getElementById('modalBorrar').style.display = 'flex';
+  document.getElementById('inpConfirmarBorrar').value = '';
+  document.getElementById('btnConfirmarBorrarModal').disabled = true;
+  document.getElementById('btnConfirmarBorrarModal').style.background = '#c5cad4';
+}
+function cerrarModalBorrar(){
+  document.getElementById('modalBorrar').style.display = 'none';
+}
+function validarBorrar(){
+  var val = document.getElementById('inpConfirmarBorrar').value.trim().toUpperCase();
+  var btn = document.getElementById('btnConfirmarBorrarModal');
+  var ok = val === 'BORRAR';
+  btn.disabled = !ok;
+  btn.style.background = ok ? '#b91c1c' : '#c5cad4';
+}
 function borrarPruebasTablero(){
-  var p1 = confirm('⚠️ Esto borra TODOS los cobros, depósitos, entregas y cartera semanal de prueba en agrosin-cxc-sistema.\n\n¿Continuar?');
-  if(!p1) return;
-  var p2 = prompt('Escribe BORRAR para confirmar:');
-  if(p2 !== 'BORRAR'){ toast('Cancelado','err'); return; }
   Promise.all([
     db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(),
     db.ref('depositos').remove(), db.ref('entregasOficina').remove(),
     db.ref('carteraSemanal').remove(), db.ref('carteraSemanalMeta').remove()
-  ]).then(function(){ toast('✅ Pruebas borradas','ok'); setTimeout(function(){location.reload();},1200); })
-    .catch(function(e){ toast('Error: '+e.message,'err'); });
+  ]).then(function(){
+    cerrarModalBorrar();
+    toast('✅ Pruebas borradas','ok'); setTimeout(function(){location.reload();},1200);
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 // ══════════════════════════════════════════════════════════
 
@@ -423,11 +448,22 @@ var ZONAS = {
            "RICARDO HDZ J","RICARDO PEREZ","ROSENDO"]
 };
 function key(v){ return v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase(); }
+function zkey(zona, v){ return zona+'::'+key(v); } // combina zona+nombre — nunca mezcla 2 personas con el mismo nombre en zonas distintas
 function fmt(n){ return '$'+(+n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtM(n){ n=+n||0; return n>=1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n>=1e3 ? '$'+(n/1e3).toFixed(1)+'K' : '$'+n.toFixed(0); }
 function toast(msg,tipo){ var t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(tipo||''); setTimeout(function(){t.className='toast';},2800); }
 function inicioSemana(){ var d=new Date(); var dia=d.getDay(); var diff=d.getDate()-dia+(dia===0?-6:1); var l=new Date(d.setDate(diff)); l.setHours(0,0,0,0); return l.getTime(); }
 function esHoy(ts){ var d=new Date(ts),h=new Date(); return d.getFullYear()===h.getFullYear()&&d.getMonth()===h.getMonth()&&d.getDate()===h.getDate(); }
+
+/* ── "Dinero seguro" = lo que YA está en la empresa, no lo que el vendedor trae en la mano.
+     No-efectivo (se confirma solo) + efectivo YA depositado (monto real, no el seleccionado) +
+     efectivo YA entregado en oficina y CONFIRMADO. El efectivo sin resolver no cuenta aquí. ── */
+function dineroSeguro(todosCobros, k, filtroTs){
+  var noEfectivo = todosCobros.filter(function(c){ return c.key===k && c.tipo!=='Efectivo' && filtroTs(c.ts); }).reduce(function(s,c){ return s+(c.monto||0); },0);
+  var depSeguro = depositosTodos.filter(function(d){ return d.key===k && filtroTs(d.ts); }).reduce(function(s,d){ return s+(d.montoReal||0); },0);
+  var entSeguro = entregasTodos.filter(function(e){ return e.key===k && e.estado==='confirmado' && filtroTs(e.ts); }).reduce(function(s,e){ return s+(e.totalCobrado||0); },0);
+  return noEfectivo + depSeguro + entSeguro;
+}
 
 function irPanel(p){
   document.querySelectorAll('.tabAdminBtn').forEach(function(t){ t.classList.toggle('act', t.getAttribute('data-p')===p); });
@@ -480,7 +516,7 @@ function renderKpisYZonas(){
   var oficinaPend = entregasTodos.filter(function(e){return e.estado==='pendiente'&&(zonaActiva==='all'||e.zona===zonaActiva);});
 
   document.getElementById('kpiCobradoHoy').textContent = fmt(cobradoHoy);
-  document.getElementById('kpiCobradoHoySub').textContent = todos.length+' recibos totales';
+  document.getElementById('kpiCobradoHoySub').textContent = todos.length+' recibos totales · incluye efectivo aún sin entregar';
   document.getElementById('kpiDepositadoHoy').textContent = fmt(depositadoHoy);
   document.getElementById('kpiPendiente').textContent = fmt(pendiente);
   document.getElementById('kpiOficinaPend').textContent = oficinaPend.length;
@@ -524,11 +560,12 @@ function renderSeguimiento(){
     ZONAS[z].forEach(function(nombre){
       if(q && nombre.toUpperCase().indexOf(q)<0) return;
       var k = key(nombre);
-      var cSem = todos.filter(function(c){return c.key===k&&c.ts>=inicioSem;}).reduce(function(s,c){return s+(c.monto||0);},0);
-      var cHoy = todos.filter(function(c){return c.key===k&&esHoy(c.ts);}).reduce(function(s,c){return s+(c.monto||0);},0);
-      var cart = carteraSemanal[k];
-      var total = cart ? cart.total : 0;
-      var pct = total>0 ? Math.min(100,(cSem/total)*100) : null;
+      var cSem = dineroSeguro(todos, k, function(ts){ return ts>=inicioSem; });
+      var cHoy = dineroSeguro(todos, k, function(ts){ return esHoy(ts); });
+      var cart = carteraSemanal[zkey(z, nombre)];
+      if(!cart || !cart.total) return; // solo interesan vendedores CON cartera cargada
+      var total = cart.total;
+      var pct = Math.min(100,(cSem/total)*100);
       var falta = Math.max(0, total-cSem);
       filas.push({nombre:nombre,zona:z,total:total,cSem:cSem,cHoy:cHoy,pct:pct,falta:falta});
     });
@@ -579,7 +616,7 @@ function renderReconciliacion(){
       var k = key(nombre);
       var cobrado = todos.filter(function(c){return c.key===k;}).reduce(function(s,c){return s+(c.monto||0);},0);
       if(cobrado<=0) return;
-      var depositado = depositosTodos.filter(function(d){return d.key===k;}).reduce(function(s,d){return s+(d.totalCobrado||0);},0);
+      var depositado = depositosTodos.filter(function(d){return d.key===k;}).reduce(function(s,d){return s+(d.montoReal||0);},0);
       var entregado = entregasTodos.filter(function(e){return e.key===k&&e.estado==='confirmado';}).reduce(function(s,e){return s+(e.totalCobrado||0);},0);
       var diferencia = Math.max(0, cobrado-depositado-entregado);
       filas.push({nombre:nombre,zona:z,cobrado:cobrado,depositado:depositado,entregado:entregado,diferencia:diferencia});
@@ -680,7 +717,7 @@ function confirmarCartera(){
   var tabla = {};
   Object.keys(datosCarteraProcesados).forEach(function(nombre){
     var v = datosCarteraProcesados[nombre];
-    tabla[key(nombre)] = {nombre:nombre,zona:v.zona,total:Math.round(v.total*100)/100,d3:Math.round(v.d3*100)/100,clientes:v.clientes};
+    tabla[zkey(v.zona, nombre)] = {nombre:nombre,zona:v.zona,total:Math.round(v.total*100)/100,d3:Math.round(v.d3*100)/100,clientes:v.clientes};
   });
   db.ref('carteraSemanal').set(tabla).then(function(){
     return db.ref('carteraSemanalMeta').set({actualizadoTs:Date.now(),totalVendedores:Object.keys(tabla).length,totalCartera:Object.keys(tabla).reduce(function(s,k){return s+tabla[k].total;},0)});
@@ -783,8 +820,8 @@ function confirmarNuevaSemana(){
   Object.keys(ZONAS).forEach(function(z){
     ZONAS[z].forEach(function(nombre){
       var k = key(nombre);
-      var cob = todos.filter(function(c){return c.key===k;}).reduce(function(s,c){return s+(c.monto||0);},0);
-      var cart = carteraSemanal[k]; var total = cart ? cart.total : 0;
+      var cob = dineroSeguro(todos, k, function(){ return true; }); // todo el histórico de la semana, ya confirmado
+      var cart = carteraSemanal[zkey(z, nombre)]; var total = cart ? cart.total : 0;
       var pctV = total>0 ? Math.min(100,(cob/total)*100) : 0;
       totCartera += total; totCobrado += cob;
       if(cob>0) activos++;
@@ -870,15 +907,15 @@ function exportarGeneral(){
   var fecha = new Date().toISOString().slice(0,10);
   var p0 = function(n){ return isNaN(n)||!n ? 0 : +n; };
 
-  var hdr1 = ['Vendedor','Zona','Cartera Semanal','Cobrado Semana','% Cobrado','Falta por Cobrar','# Recibos','Bancos Utilizados'];
+  var hdr1 = ['Vendedor','Zona','Cartera Semanal','Confirmado Semana','% Confirmado','Falta por Confirmar','# Recibos','Bancos Utilizados'];
   var rows1 = [];
   var totCarteraGen=0, totCobradoGen=0, totFaltaGen=0, totRecibosGen=0;
   Object.keys(ZONAS).forEach(function(z){
     ZONAS[z].forEach(function(nombre){
       var k = key(nombre);
       var misRecibos = todos.filter(function(c){return c.key===k;});
-      var cSem = misRecibos.filter(function(c){return c.ts>=inicioSem;}).reduce(function(s,c){return s+(c.monto||0);},0);
-      var cart = carteraSemanal[k]; var total = cart?cart.total:0;
+      var cSem = dineroSeguro(todos, k, function(ts){ return ts>=inicioSem; });
+      var cart = carteraSemanal[zkey(z, nombre)]; var total = cart?cart.total:0;
       var falta = Math.max(0,total-cSem);
       var pctV = total>0 ? Math.min(100,(cSem/total)*100) : 0;
       var misDepositos = depositosTodos.filter(function(d){return d.key===k;});
