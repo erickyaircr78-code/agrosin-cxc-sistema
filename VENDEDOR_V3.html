@@ -46,7 +46,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .tipo-opt{padding:14px 6px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;text-align:center;font-size:13px;font-weight:800;color:var(--gris);cursor:pointer;user-select:none;}
 .tipo-opt.act{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 3px 10px rgba(29,78,216,.3);}
 .tabs{display:flex;gap:8px;margin-bottom:14px;}
-.tab{flex:1;text-align:center;padding:10px 6px;border-radius:10px;font-size:12px;font-weight:800;background:#e2e8f0;color:var(--gris);border:none;cursor:pointer;}
+.tab{flex:1;text-align:center;padding:13px 6px;border-radius:10px;font-size:13px;font-weight:800;background:#e2e8f0;color:var(--gris);border:none;cursor:pointer;}
 .tab.act{background:var(--azul);color:#fff;}
 .badge-cont{background:#dc2626;color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;}
 .ticket{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.1);}
@@ -84,13 +84,13 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .entrega-pend .fila-abierta{margin-top:10px;padding-top:10px;border-top:1px dashed #fed7aa;}
 .entrega-pend .fila-campos{display:flex;gap:8px;margin-bottom:8px;}
 .entrega-pend select{flex:1;padding:12px 10px;border:2px solid var(--borde);border-radius:10px;font-size:14px;font-weight:700;background:#fff;}
-.entrega-pend input[type=password]{width:76px;padding:12px 8px;border:2px solid var(--borde);border-radius:10px;font-size:16px;font-weight:800;letter-spacing:5px;text-align:center;background:#fff;}
+.entrega-pend input[type=password]{width:88px;padding:12px 8px;border:2px solid var(--borde);border-radius:10px;font-size:18px;font-weight:800;letter-spacing:4px;text-align:center;background:#fff;}
 .entrega-pend .err-pend{color:var(--rojo);font-size:11px;font-weight:700;margin:0 0 8px;}
 .diff-box{border-radius:12px;padding:12px 14px;margin-top:10px;font-size:12px;font-weight:700;}
 .diff-box.warn{background:#fff7ed;border:1.5px solid #fed7aa;color:#92600a;}
 .diff-box.ok{background:#f0fdf4;border:1.5px solid #86efac;color:var(--verde);}
 .vacio{text-align:center;color:var(--gris);font-size:13px;padding:22px 0;}
-.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(70px);background:#0f172a;color:#fff;padding:13px 26px;border-radius:40px;font-size:14px;font-weight:800;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap;max-width:88vw;pointer-events:none;}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(70px);background:#0f172a;color:#fff;padding:13px 22px;border-radius:18px;font-size:13px;font-weight:800;opacity:0;transition:all .3s;z-index:9999;white-space:normal;max-width:88vw;text-align:center;line-height:1.4;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast.ok{background:var(--verde);}
 .toast.err{background:var(--rojo);}
@@ -99,14 +99,28 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .pantalla.act{display:block;}
 .busc-item{padding:14px;border:2px solid var(--borde);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#f8fafc;}
 .busc-item:active{background:#eff6ff;}
-.busc-cliente{font-size:13px;font-weight:800;color:var(--texto);}
-.busc-meta{font-size:11px;color:var(--gris);font-weight:700;margin-top:2px;}
+.busc-cliente{font-size:14px;font-weight:800;color:var(--texto);}
+.busc-meta{font-size:12px;color:var(--gris);font-weight:700;margin-top:2px;}
 .busc-saldo{font-size:15px;font-weight:900;color:var(--ora);margin-top:4px;}
 .fact-sel{background:#eff6ff;border:2px solid #93c5fd;border-radius:14px;padding:14px 16px;margin-bottom:14px;}
 .fact-sel .fs-cliente{font-size:15px;font-weight:900;color:var(--texto);}
 .fact-sel .fs-meta{font-size:11px;color:var(--azul);font-weight:700;margin-top:2px;}
 .fact-sel .fs-saldo{font-size:20px;font-weight:900;color:var(--ora);margin-top:6px;}
 .fact-sel .fs-cambiar{font-size:11px;color:var(--gris);text-decoration:underline;margin-top:6px;cursor:pointer;display:inline-block;}
+
+/* ── Estado de cuenta / avance semanal ── */
+.avance-card{background:linear-gradient(135deg,#1d4ed8 0%,#1e3a8a 100%);border-radius:18px;padding:20px 18px;margin-bottom:14px;color:#fff;}
+.avance-titulo{font-size:14px;font-weight:800;margin-bottom:14px;}
+.avance-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.avance-box{background:rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;}
+.avance-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.65);margin-bottom:4px;}
+.avance-val{font-size:19px;font-weight:900;}
+.avance-val.verde{color:#86efac;}
+.avance-val.rojo{color:#fca5a5;}
+.avance-progreso-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.65);margin-bottom:6px;}
+.avance-bar-bg{height:10px;background:rgba(255,255,255,.2);border-radius:10px;overflow:hidden;}
+.avance-bar-fill{height:100%;background:linear-gradient(90deg,#86efac,#4ade80);border-radius:10px;transition:width .4s;}
+.avance-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:6px;}
 .toggle-desc{display:flex;align-items:center;gap:8px;padding:12px 4px;font-size:13px;font-weight:800;color:var(--texto);cursor:pointer;}
 .calc-box{background:#f8fafc;border:1.5px dashed var(--borde);border-radius:12px;padding:12px 14px;margin-top:8px;font-size:12px;}
 .calc-row{display:flex;justify-content:space-between;padding:3px 0;}
@@ -118,7 +132,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 <body>
 
 <div class="header">
-  <button type="button" class="topbtn-temp" onclick="borrarPruebasVendedor()">🗑️ TEMP: borrar pruebas</button>
+  <button type="button" class="topbtn-temp" onclick="abrirModalBorrar()">🗑️ TEMP: borrar pruebas</button>
   <div class="header-inner">
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="logo-txt">AGROSIN</div>
@@ -156,6 +170,23 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
   <div class="pantalla" id="pApp">
     <div class="saludo-fijo">👤 <span id="nombreFijo"></span><span class="cambiar" onclick="cambiarVendedor()">(cambiar)</span></div>
 
+    <div class="avance-card" id="avanceCard" style="display:none;">
+      <div class="avance-titulo">👋 Hola <span id="avanceNombre"></span>, tu avance de esta semana:</div>
+      <div class="avance-grid">
+        <div class="avance-box"><div class="avance-lbl">Total Cartera</div><div class="avance-val" id="avanceCartera">—</div></div>
+        <div class="avance-box"><div class="avance-lbl">Cobrado</div><div class="avance-val verde" id="avanceCobrado">—</div></div>
+        <div class="avance-box"><div class="avance-lbl">Falta por Cobrar</div><div class="avance-val rojo" id="avanceFalta">—</div></div>
+        <div class="avance-box"><div class="avance-lbl">Avance</div><div class="avance-val verde" id="avancePct">—</div></div>
+      </div>
+      <div class="avance-grid" style="margin-top:-4px;">
+        <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">Cobrado en total (bruto)</div><div class="avance-val" id="avanceCobradoBruto" style="font-size:16px;">—</div></div>
+        <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">Ya depositado</div><div class="avance-val" id="avanceDepositado" style="font-size:16px;">—</div></div>
+      </div>
+      <div class="avance-progreso-lbl">Progreso</div>
+      <div class="avance-bar-bg"><div class="avance-bar-fill" id="avanceBar" style="width:0%;"></div></div>
+      <div class="avance-sub" id="avanceSub"></div>
+    </div>
+
     <div class="tabs">
       <button type="button" class="tab act" id="tabBtn1" onclick="irTab(1)">1. Cobrar</button>
       <button type="button" class="tab" id="tabBtn2" onclick="irTab(2)">2. Depósito<span class="badge-cont" id="badgePend" style="display:none;"></span></button>
@@ -191,7 +222,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         </div>
         <div class="campo">
           <label>Monto total de la factura ($)</label>
-          <input type="number" id="inpFPTotal" placeholder="0.00" min="0" step="0.01" oninput="validarFueraPlanilla()">
+          <input type="number" id="inpFPTotal" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="validarFueraPlanilla()">
         </div>
         <div id="errFueraPlanilla" style="display:none;font-size:12px;font-weight:800;color:var(--rojo);margin-bottom:8px;"></div>
         <button type="button" class="btn-reg" id="btnContinuarFP" onclick="continuarFueraPlanilla()" disabled><span>➡️</span> Continuar con este cobro</button>
@@ -225,7 +256,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           <span>¿Hubo devolución de material?</span>
         </div>
         <div id="bloqueDevolucion" style="display:none;">
-          <div class="campo"><label>Devolución ($)</label><input type="number" id="inpDevolucion" placeholder="0.00" min="0" step="0.01" oninput="recalcular()"></div>
+          <div class="campo"><label>Devolución ($)</label><input type="number" id="inpDevolucion" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="recalcular()"></div>
         </div>
 
         <div class="tarjeta-titulo" style="margin-top:6px;">¿Pagó completo o es abono?</div>
@@ -299,7 +330,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         </div>
         <div class="campo" style="margin-top:14px;">
           <label>Monto que realmente depositaste ($)</label>
-          <input type="number" id="inpMontoReal" step="0.01">
+          <input type="number" id="inpMontoReal" step="0.01" inputmode="decimal">
         </div>
         <div id="diffBox"></div>
         <button type="button" class="btn-reg" onclick="confirmarDeposito()"><span>💾</span> Confirmar depósito</button>
@@ -325,6 +356,16 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div id="modalBorrar" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;max-width:360px;width:100%;padding:24px 22px;">
+    <div style="font-size:16px;font-weight:900;color:#dc2626;margin-bottom:10px;">⚠️ Borrar pruebas</div>
+    <div style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:16px;">Esto borra TODOS tus cobros, depósitos y entregas de prueba en agrosin-cxc-sistema. No afecta las planillas ni otros proyectos.<br><br>Para confirmar, escribe <strong>BORRAR</strong> abajo:</div>
+    <input type="text" id="inpConfirmarBorrar" placeholder="Escribe BORRAR" oninput="validarBorrar()" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:800;text-align:center;text-transform:uppercase;margin-bottom:14px;">
+    <button type="button" id="btnConfirmarBorrarModal" onclick="borrarPruebasVendedor()" disabled style="width:100%;padding:14px;background:#94a3b8;color:#fff;border:none;border-radius:12px;font-weight:900;font-size:14px;margin-bottom:8px;">Confirmar borrado</button>
+    <button type="button" onclick="cerrarModalBorrar()" style="width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:800;font-size:13px;">Cancelar</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -353,17 +394,30 @@ firebase.auth().onAuthStateChanged(function(u){
    vendedor. NO toca "planillas" (eso lo maneja el botón del módulo 1).
    Quitar este bloque completo (y el botón) antes de usar en real.
    ============================================================ */
+function abrirModalBorrar(){
+  document.getElementById('modalBorrar').style.display = 'flex';
+  document.getElementById('inpConfirmarBorrar').value = '';
+  document.getElementById('btnConfirmarBorrarModal').disabled = true;
+  document.getElementById('btnConfirmarBorrarModal').style.background = '#94a3b8';
+}
+function cerrarModalBorrar(){
+  document.getElementById('modalBorrar').style.display = 'none';
+}
+function validarBorrar(){
+  var val = document.getElementById('inpConfirmarBorrar').value.trim().toUpperCase();
+  var btn = document.getElementById('btnConfirmarBorrarModal');
+  var ok = val === 'BORRAR';
+  btn.disabled = !ok;
+  btn.style.background = ok ? '#dc2626' : '#94a3b8';
+}
 function borrarPruebasVendedor(){
-  var p1 = confirm('⚠️ Esto borra TODOS tus cobros, depósitos y entregas de prueba en agrosin-cxc-sistema.\n\nNo afecta las planillas ni otros proyectos.\n\n¿Continuar?');
-  if(!p1) return;
-  var p2 = prompt('Escribe BORRAR para confirmar:');
-  if(p2 !== 'BORRAR'){ toast('Cancelado','warn'); return; }
   Promise.all([
     db.ref('cobros').remove(),
     db.ref('depositos').remove(),
     db.ref('entregasOficina').remove(),
     db.ref('cobrosFueraPlanilla').remove()
   ]).then(function(){
+    cerrarModalBorrar();
     toast('✅ Pruebas de cobros borradas','ok');
     setTimeout(function(){ location.reload(); }, 1200);
   }).catch(function(e){ toast('Error: '+e.message,'err'); });
@@ -384,6 +438,8 @@ var ZONAS = {
            "RICARDO HDZ J","RICARDO PEREZ","ROSENDO"]
 };
 function key(v){ return v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase(); }
+function zkey(zona, v){ return zona+'::'+key(v); } // igual que en el Tablero — nunca mezcla 2 personas con el mismo nombre en zonas distintas
+function inicioSemana(){ var d=new Date(); var dia=d.getDay(); var diff=d.getDate()-dia+(dia===0?-6:1); var l=new Date(d.setDate(diff)); l.setHours(0,0,0,0); return l.getTime(); }
 function fmt(n){ return '$'+(+n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 /* ── Estado global ── */
@@ -412,6 +468,64 @@ function cargarVendedoresDeZona(){
   sel.innerHTML = opts;
 }
 
+/* ── Estado de cuenta / avance semanal — misma definición de "dinero seguro" que el Tablero ── */
+var misCobrosSemana = [], misDepositosSemana = [], misEntregasSemana = [], miCartera = null;
+function escucharAvance(){
+  var inicioSem = inicioSemana();
+  db.ref('carteraSemanal/'+zkey(miZona, miNombre)).on('value', function(snap){
+    miCartera = snap.val();
+    renderAvance();
+  });
+  db.ref('cobros/'+miZona+'/'+miKey).on('value', function(snap){
+    var arr = []; snap.forEach(function(c){ arr.push(c.val()); });
+    misCobrosSemana = arr.filter(function(c){ return c.ts >= inicioSem; });
+    renderAvance();
+  });
+  db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey).on('value', function(snap){
+    var arr = []; snap.forEach(function(c){ arr.push(c.val()); });
+    misCobrosSemana = misCobrosSemana.concat(arr.filter(function(c){ return c.ts >= inicioSem; }));
+    renderAvance();
+  });
+  db.ref('depositos/'+miKey).on('value', function(snap){
+    var arr = []; snap.forEach(function(d){ arr.push(d.val()); });
+    misDepositosSemana = arr.filter(function(d){ return d.ts >= inicioSem; });
+    renderAvance();
+  });
+  db.ref('entregasOficina/'+miKey).on('value', function(snap){
+    var arr = []; snap.forEach(function(e){ arr.push(e.val()); });
+    misEntregasSemana = arr.filter(function(e){ return e.ts >= inicioSem; });
+    renderAvance();
+  });
+}
+function renderAvance(){
+  var card = document.getElementById('avanceCard');
+  if(!miCartera || !miCartera.total){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('avanceNombre').textContent = miNombre;
+
+  // "Dinero seguro": no-efectivo (se confirma solo) + efectivo YA depositado (monto real) + efectivo YA entregado y confirmado
+  var noEfectivo = misCobrosSemana.filter(function(c){ return c.tipo!=='Efectivo'; }).reduce(function(s,c){ return s+(c.monto||0); },0);
+  var depSeguro = misDepositosSemana.reduce(function(s,d){ return s+(d.montoReal||0); },0);
+  var entSeguro = misEntregasSemana.filter(function(e){ return e.estado==='confirmado'; }).reduce(function(s,e){ return s+(e.totalCobrado||0); },0);
+  var cobrado = noEfectivo + depSeguro + entSeguro;
+
+  var total = miCartera.total;
+  var falta = Math.max(0, total-cobrado);
+  var pct = total>0 ? Math.min(100, (cobrado/total)*100) : 0;
+
+  var cobradoBruto = misCobrosSemana.reduce(function(s,c){ return s+(c.monto||0); },0);
+  var depositadoTotal = misDepositosSemana.reduce(function(s,d){ return s+(d.montoReal||0); },0);
+
+  document.getElementById('avanceCartera').textContent = fmt(total);
+  document.getElementById('avanceCobrado').textContent = fmt(cobrado);
+  document.getElementById('avanceFalta').textContent = fmt(falta);
+  document.getElementById('avancePct').textContent = pct.toFixed(1)+'%';
+  document.getElementById('avanceCobradoBruto').textContent = fmt(cobradoBruto);
+  document.getElementById('avanceDepositado').textContent = fmt(depositadoTotal);
+  document.getElementById('avanceBar').style.width = pct+'%';
+  document.getElementById('avanceSub').textContent = pct.toFixed(1)+'% de tu meta · faltan '+fmt(falta);
+}
+
 function fijarVendedor(){
   var zona = document.getElementById('selZona').value;
   var nombre = document.getElementById('selVendedor').value;
@@ -425,6 +539,7 @@ function fijarVendedor(){
   cargarPlanillaActiva();
   escucharPendientes();
   escucharEntregasPendientes();
+  escucharAvance();
 }
 function cambiarVendedor(){
   document.getElementById('pApp').classList.remove('act');
