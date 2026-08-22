@@ -550,8 +550,8 @@ function cancelarSeleccion(){
   document.getElementById('tarjetaBuscar').style.display = '';
   document.getElementById('tarjetaForm').style.display = 'none';
   document.getElementById('inpBuscar').value = '';
-  document.getElementById('resultadosBusqueda').innerHTML = '';
   document.getElementById('sinResultados').style.display = 'none';
+  buscarFactura(); // vuelve a pintar la lista completa de pendientes, no la deja vacía
 }
 
 function elegirTipo(t){
