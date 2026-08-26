@@ -144,11 +144,21 @@ input[type=file]{display:none}
 </head>
 <body>
 
+<div id="modalBorrar" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:24px 22px;font-family:'Montserrat',sans-serif;">
+    <div style="font-size:16px;font-weight:900;color:#dc2626;margin-bottom:10px;">⚠️ Borrar todas las pruebas</div>
+    <div style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:16px;">Esto va a borrar TODAS las planillas de prueba de este sistema (agrosin-cxc-sistema). No afecta el sistema viejo ni el piloto — solo este.<br><br>Para confirmar, escribe <strong>BORRAR</strong> abajo:</div>
+    <input type="text" id="inpConfirmarBorrar" placeholder="Escribe BORRAR" oninput="validarBorrar()" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:800;text-align:center;text-transform:uppercase;margin-bottom:14px;box-sizing:border-box;">
+    <button type="button" id="btnConfirmarBorrarModal" onclick="borrarTodasLasPruebas()" disabled style="width:100%;padding:14px;background:#94a3b8;color:#fff;border:none;border-radius:12px;font-weight:900;font-size:14px;margin-bottom:8px;cursor:pointer;">Confirmar borrado</button>
+    <button type="button" onclick="cerrarModalBorrar()" style="width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;">Cancelar</button>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="brand">FERRE<span>GAMA</span></div>
   <div style="font-size:12px;color:rgba(255,255,255,0.45)">Módulo de Planillas · Entrega de Documentos</div>
   <div class="tb-right">
-    <button id="btnBorrarPruebas" onclick="borrarTodasLasPruebas()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
+    <button id="btnBorrarPruebas" onclick="abrirModalBorrar()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="u-chip" id="uChip">👤 Seleccionar</div>
   </div>
@@ -213,12 +223,25 @@ var db = firebase.database();
 // Borra TODO lo que haya en "planillas" de este Firebase (agrosin-cxc-sistema).
 // Quitar este bloque completo (y el botón en el HTML) antes de usar el sistema en real.
 // ══════════════════════════════════════════════════════════
+function abrirModalBorrar(){
+  document.getElementById('modalBorrar').style.display = 'flex';
+  document.getElementById('inpConfirmarBorrar').value = '';
+  document.getElementById('btnConfirmarBorrarModal').disabled = true;
+  document.getElementById('btnConfirmarBorrarModal').style.background = '#94a3b8';
+}
+function cerrarModalBorrar(){
+  document.getElementById('modalBorrar').style.display = 'none';
+}
+function validarBorrar(){
+  var val = document.getElementById('inpConfirmarBorrar').value.trim().toUpperCase();
+  var btn = document.getElementById('btnConfirmarBorrarModal');
+  var ok = val === 'BORRAR';
+  btn.disabled = !ok;
+  btn.style.background = ok ? '#dc2626' : '#94a3b8';
+}
 function borrarTodasLasPruebas(){
-  var paso1 = confirm('⚠️ Esto va a borrar TODAS las planillas de prueba de este sistema (agrosin-cxc-sistema).\n\nNo afecta el sistema viejo ni el piloto — solo este.\n\n¿Continuar?');
-  if(!paso1) return;
-  var paso2 = prompt('Para confirmar, escribe BORRAR (en mayúsculas):');
-  if(paso2 !== 'BORRAR'){ toast('Cancelado — no se borró nada','warn'); return; }
   db.ref('planillas').remove().then(function(){
+    cerrarModalBorrar();
     toast('✅ Todas las pruebas fueron borradas','ok');
     setTimeout(function(){ location.reload(); }, 1200);
   }).catch(function(e){
@@ -1005,7 +1028,9 @@ function descargarPlanilla(r, formato){
       'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
       'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
       'Banco':f.banco||'', 'Tipo de Cobro':f.tipo||'', 'Estado':f.estado||'pendiente',
-      'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO', 'Observaciones':''
+      'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO',
+      'Sdo. Favor Generado':f.favorGenerado||0, 'Sdo. Favor Aplicado':f.favorAplicado||0,
+      'Observaciones':''
     };
   });
   var nombre = 'Planilla_'+r.vendor+'_Hoja'+h.folio_hoja+'_'+h.fecha.replace(/\//g,'-');
@@ -1045,7 +1070,9 @@ function descargarTodas(formato){
               'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
               'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
               'Banco':f.banco||'','Tipo de Cobro':f.tipo||'','Estado':f.estado||'pendiente',
-              'Fecha Cobro':f.fechaCobro||'','Comprobante':f.tieneFoto?'SÍ':'NO','Observaciones':''
+              'Fecha Cobro':f.fechaCobro||'','Comprobante':f.tieneFoto?'SÍ':'NO',
+              'Sdo. Favor Generado':f.favorGenerado||0,'Sdo. Favor Aplicado':f.favorAplicado||0,
+              'Observaciones':''
             });
           });
         }

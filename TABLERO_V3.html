@@ -225,6 +225,7 @@ input[type=file]{display:none;}
     <button type="button" class="tabAdminBtn" data-p="recon" onclick="irPanel('recon')">🧾 Reconciliación</button>
     <button type="button" class="tabAdminBtn" data-p="oficina" onclick="irPanel('oficina')">🏢 Oficina</button>
     <button type="button" class="tabAdminBtn" data-p="cartera" onclick="irPanel('cartera')">💰 Cartera Semanal</button>
+    <button type="button" class="tabAdminBtn" data-p="saldos" onclick="irPanel('saldos')">💳 Saldos a Favor</button>
   </div>
 
   <div class="panelAdmin act" id="panel-seg">
@@ -365,6 +366,33 @@ input[type=file]{display:none;}
     <div class="bpnl">
       <div class="bhdr"><span class="bttl">Cartera actual guardada</span></div>
       <div class="bpanel" id="carteraActualBox"></div>
+    </div>
+  </div>
+
+  <div class="panelAdmin" id="panel-saldos">
+    <div class="bpnl" style="margin-bottom:14px;">
+      <div class="bhdr"><span class="bttl">💳 Saldos a Favor Pendientes</span></div>
+      <div class="bpanel" style="font-size:11px;color:var(--ink2);">Clientes que pagaron de más y todavía tienen crédito sin aplicar en ninguna factura.</div>
+    </div>
+    <div class="tbl-o" style="margin-bottom:16px;">
+      <div class="tbl-s">
+        <table>
+          <thead><tr><th>Cliente</th><th>Clave</th><th>Zona</th><th class="tn">Monto pendiente</th></tr></thead>
+          <tbody id="tbodySaldosPend"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bpnl" style="margin-bottom:14px;">
+      <div class="bhdr"><span class="bttl">📜 Historial de movimientos</span></div>
+    </div>
+    <div class="tbl-o">
+      <div class="tbl-s">
+        <table>
+          <thead><tr><th>Fecha</th><th>Cliente</th><th>Movimiento</th><th>Folio</th><th>Vendedor</th><th class="tn">Monto</th></tr></thead>
+          <tbody id="tbodySaldosHistorial"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -983,6 +1011,56 @@ function exportarGeneral(){
   XLSX.writeFile(wb, 'AGROSIN_TABLERO_'+fecha+'.xlsx');
   toast('✅ Excel descargado','ok');
 }
+/* ══════════════════ SALDOS A FAVOR ══════════════════ */
+var saldosAFavorData = {};
+db.ref('saldosAFavor').on('value', function(snap){
+  saldosAFavorData = snap.val() || {};
+  renderSaldosPendientes();
+});
+function renderSaldosPendientes(){
+  var tbody = document.getElementById('tbodySaldosPend');
+  if(!tbody) return;
+  var lista = Object.keys(saldosAFavorData)
+    .map(function(clave){ return Object.assign({clave:clave}, saldosAFavorData[clave]); })
+    .filter(function(s){ return s.monto > 0; })
+    .sort(function(a,b){ return b.monto - a.monto; });
+  if(!lista.length){ tbody.innerHTML = '<tr><td colspan="4" class="remp">No hay saldos a favor pendientes.</td></tr>'; return; }
+  tbody.innerHTML = lista.map(function(s){
+    return '<tr><td class="vname">'+(s.nombre||'—')+'</td><td>'+s.clave+'</td><td>'+(s.zona||'—')+'</td><td class="tcob">'+fmt(s.monto)+'</td></tr>';
+  }).join('');
+}
+function renderSaldosHistorial(){
+  var tbody = document.getElementById('tbodySaldosHistorial');
+  if(!tbody) return;
+  db.ref('saldosAFavorLog').once('value').then(function(snap){
+    var movs = [];
+    snap.forEach(function(clienteSnap){
+      var clave = clienteSnap.key;
+      clienteSnap.forEach(function(mov){
+        movs.push(Object.assign({clave:clave, id:mov.key}, mov.val()));
+      });
+    });
+    movs.sort(function(a,b){ return b.ts - a.ts; });
+    movs = movs.slice(0, 100);
+    if(!movs.length){ tbody.innerHTML = '<tr><td colspan="6" class="remp">Sin movimientos todavía.</td></tr>'; return; }
+    tbody.innerHTML = movs.map(function(m){
+      var fecha = new Date(m.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      var nombreCliente = (saldosAFavorData[m.clave] && saldosAFavorData[m.clave].nombre) || m.clave;
+      var pill = m.tipo==='generado' ? '<span class="rpill pend">Generado</span>' : '<span class="rpill dep">Aplicado</span>';
+      return '<tr><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+fecha+'</td><td class="vname">'+nombreCliente+'</td><td>'+pill+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+(m.folio||'—')+'</td><td>'+(m.vendedor||'—')+'</td><td class="tn">'+fmt(m.monto)+'</td></tr>';
+    }).join('');
+  });
+}
+// Cargar el historial la primera vez que se abre esa pestaña
+var _historialSaldosCargado = false;
+var _irPanelOriginal = irPanel;
+irPanel = function(p){
+  _irPanelOriginal(p);
+  if(p === 'saldos' && !_historialSaldosCargado){
+    _historialSaldosCargado = true;
+    renderSaldosHistorial();
+  }
+};
 
 refrescarTodo();
 </script>

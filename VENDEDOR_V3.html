@@ -279,6 +279,14 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           <input type="number" id="inpMonto" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="recalcular()">
         </div>
 
+        <div class="campo" id="bloqueSaldoFavor" style="display:none;">
+          <div id="infoSaldoFavor" style="padding:15px 14px;border:2px solid #86efac;border-radius:12px;background:#f0fdf4;font-weight:800;font-size:13px;color:var(--verde);"></div>
+          <div class="toggle-desc" onclick="toggleAplicarSaldoFavor()">
+            <input type="checkbox" id="chkAplicarSaldoFavor" onclick="event.stopPropagation();toggleAplicarSaldoFavor(true)">
+            <span>Aplicar este saldo a esta factura</span>
+          </div>
+        </div>
+
         <div class="calc-box" id="calcBox"></div>
 
         <button type="button" class="btn-reg btn-morado" id="btnEnviar" style="margin-top:14px;" onclick="registrarCobro()"><span>📸</span> Generar recibo</button>
@@ -450,7 +458,7 @@ var esFueraDePlanilla = false;
 var tipoActual = 'Efectivo';
 var ultimoTicket = null;
 var pendientes = [], seleccion = {}, entregasPendientes = [], rutaActual = 'banco';
-var PERSONAL_OFICINA = ['LUPE','CARI','KAREN','JENNIFER','NANCY','SAMANTA','CLAUDIA'];
+var PERSONAL_OFICINA = ['LUPE','CARI','KAREN','JENNIFER','NANCY','SAMANTA','CLAUDIA','MIRI','MEMO'];
 
 function toast(msg, tipo){
   var t = document.getElementById('toast');
@@ -678,6 +686,7 @@ function mostrarFormularioCobro(){
   elegirModo('completo');
   recalcular();
   buscarDescuentoFijoDelCliente();
+  buscarSaldoFavorDelCliente();
 }
 
 /* ── Descuento del cliente: NO es editable por el vendedor — es 100% informativo.
@@ -725,6 +734,31 @@ function buscarDescuentoFijoDelCliente(){
 }
 function toggleAplicarDescuento(fromClick){
   aplicarDescuento = document.getElementById('chkAplicarDescuento').checked;
+  recalcular();
+}
+
+/* ── Saldo a favor: se genera solo cuando el cliente paga de más, y se ofrece
+     aplicar la próxima vez que ese mismo cliente tenga una factura pendiente. ── */
+var saldoAFavorDisponible = 0;
+var aplicarSaldoFavor = false;
+function buscarSaldoFavorDelCliente(){
+  var bloque = document.getElementById('bloqueSaldoFavor');
+  var chk = document.getElementById('chkAplicarSaldoFavor');
+  chk.checked = false; aplicarSaldoFavor = false; saldoAFavorDisponible = 0;
+  bloque.style.display = 'none';
+  if(!facturaSel || !facturaSel.clave) return;
+  db.ref('saldosAFavor/'+String(facturaSel.clave).trim()).once('value').then(function(snap){
+    var d = snap.val();
+    if(d && d.monto > 0){
+      saldoAFavorDisponible = d.monto;
+      document.getElementById('infoSaldoFavor').textContent = '💰 Este cliente tiene '+fmt(d.monto)+' a favor';
+      bloque.style.display = '';
+      recalcular();
+    }
+  }).catch(function(){ /* si falla, simplemente no se ofrece, no bloquea el cobro */ });
+}
+function toggleAplicarSaldoFavor(fromClick){
+  aplicarSaldoFavor = document.getElementById('chkAplicarSaldoFavor').checked;
   recalcular();
 }
 function cancelarSeleccion(){
@@ -780,17 +814,30 @@ function recalcular(){
   if(modoPago==='completo'){
     var pct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
     var descuentoMonto = subtotal * (pct/100);
-    var aCobrar = subtotal - descuentoMonto;
+    var trasDescuento = subtotal - descuentoMonto;
+    var favorAplicado = aplicarSaldoFavor ? Math.min(saldoAFavorDisponible, trasDescuento) : 0;
+    var aCobrar = trasDescuento - favorAplicado;
     if(pct>0) filas += '<div class="calc-row"><span>− Descuento ('+pct+'%)</span><span>'+fmt(descuentoMonto)+'</span></div>';
+    if(favorAplicado>0) filas += '<div class="calc-row"><span>− Saldo a favor aplicado</span><span>'+fmt(favorAplicado)+'</span></div>';
     filas += '<div class="calc-row total ok"><span>A COBRAR</span><span>'+fmt(aCobrar)+'</span></div>';
     filas += '<div class="calc-row total ok" style="font-size:11px;"><span>Resultado</span><span>FACTURA LIQUIDADA ✓</span></div>';
   } else {
     var pagado = parseFloat(document.getElementById('inpMonto').value) || 0;
-    var restante = Math.max(0, subtotal - pagado);
+    var favorAplicadoAb = aplicarSaldoFavor ? Math.min(saldoAFavorDisponible, subtotal) : 0;
+    var subtotalConFavor = Math.max(0, subtotal - favorAplicadoAb);
+    if(favorAplicadoAb>0) filas += '<div class="calc-row"><span>− Saldo a favor aplicado</span><span>'+fmt(favorAplicadoAb)+'</span></div>';
     filas += '<div class="calc-row"><span>− Pagó (abono)</span><span>'+fmt(pagado)+'</span></div>';
-    var claseTotal = restante <= 0.005 ? 'ok' : 'deb';
-    var txt = restante <= 0.005 ? 'LIQUIDADA ✓' : ('Sigue debiendo '+fmt(restante));
-    filas += '<div class="calc-row total '+claseTotal+'"><span>Resultado</span><span>'+txt+'</span></div>';
+    var restante = subtotalConFavor - pagado;
+    if(restante < -0.005){
+      var excedente = Math.abs(restante);
+      filas += '<div class="calc-row total ok"><span>Resultado</span><span>LIQUIDADA ✓</span></div>';
+      filas += '<div class="calc-row" style="color:var(--verde);font-weight:800;"><span>💰 Pago de más</span><span>'+fmt(excedente)+' a favor</span></div>';
+    } else {
+      restante = Math.max(0, restante);
+      var claseTotal = restante <= 0.005 ? 'ok' : 'deb';
+      var txt = restante <= 0.005 ? 'LIQUIDADA ✓' : ('Sigue debiendo '+fmt(restante));
+      filas += '<div class="calc-row total '+claseTotal+'"><span>Resultado</span><span>'+txt+'</span></div>';
+    }
   }
   box.innerHTML = filas;
 }
@@ -804,33 +851,46 @@ function registrarCobro(){
   var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
   var subtotal = Math.max(0, saldoAntes - devolucion);
 
-  var monto, descuento, descuentoPct, saldoDespues;
+  var monto, descuento, descuentoPct, saldoDespues, favorAplicado = 0, favorGenerado = 0;
   if(modoPago === 'completo'){
     descuentoPct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
     descuento = subtotal * (descuentoPct/100);
-    monto = subtotal - descuento;
+    var trasDescuento = subtotal - descuento;
+    favorAplicado = aplicarSaldoFavor ? Math.min(saldoAFavorDisponible, trasDescuento) : 0;
+    monto = trasDescuento - favorAplicado;
     saldoDespues = 0; // pago completo siempre liquida la factura
   } else {
     descuentoPct = 0; descuento = 0; // NUNCA se permite descuento en abono
-    monto = parseFloat(document.getElementById('inpMonto').value) || 0;
-    saldoDespues = Math.max(0, subtotal - monto);
+    favorAplicado = aplicarSaldoFavor ? Math.min(saldoAFavorDisponible, subtotal) : 0;
+    var subtotalConFavor = Math.max(0, subtotal - favorAplicado);
+    var pagado = parseFloat(document.getElementById('inpMonto').value) || 0;
+    if(pagado > subtotalConFavor){
+      favorGenerado = pagado - subtotalConFavor; // pagó de más -> se guarda a su favor
+      monto = subtotalConFavor; // a la factura solo le corresponde esto, no más
+      saldoDespues = 0;
+    } else {
+      monto = pagado;
+      saldoDespues = Math.max(0, subtotalConFavor - pagado);
+    }
   }
 
-  if(monto<=0 && devolucion<=0){ toast('Captura al menos un monto','err'); return; }
+  if(monto<=0 && devolucion<=0 && favorAplicado<=0 && favorGenerado<=0){ toast('Captura al menos un monto','err'); return; }
 
   var banco = tipoActual==='Efectivo' ? null : document.getElementById('selBanco').value;
   var ahora = new Date();
   var fecha = ahora.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   var folioRecibo = 'R'+ahora.getTime().toString().slice(-8);
+  var claveCliente = facturaSel.clave ? String(facturaSel.clave).trim() : null;
 
   var registro = {
     vendor: miNombre, key: miKey, zona: miZona,
-    folio: facturaSel.folio, cliente: facturaSel.nombre,
+    folio: facturaSel.folio, cliente: facturaSel.nombre, clave: claveCliente,
     fueraDePlanilla: esFueraDePlanilla,
     planillaTs: esFueraDePlanilla ? null : (planillaActiva ? planillaActiva.ts : null),
     tipo: tipoActual, banco: banco,
     modoPago: modoPago, descuentoPct: descuentoPct,
     monto: monto, devolucion: devolucion, descuento: descuento,
+    favorAplicado: favorAplicado, favorGenerado: favorGenerado,
     saldoAntes: saldoAntes, saldoDespues: saldoDespues,
     ts: ahora.getTime(), fecha: fecha, folioRecibo: folioRecibo,
     estado: tipoActual==='Efectivo' ? 'pendiente' : 'confirmado'
@@ -854,13 +914,33 @@ function registrarCobro(){
       updates[base+'banco'] = banco;
       updates[base+'devolucion'] = (facturaSel.devolucion||0) + devolucion;
       updates[base+'descuento'] = (facturaSel.descuento||0) + descuento;
+      updates[base+'favorAplicado'] = (facturaSel.favorAplicado||0) + favorAplicado;
+      updates[base+'favorGenerado'] = (facturaSel.favorGenerado||0) + favorGenerado;
       updates[base+'cobradoPor'] = miNombre;
       updates[base+'fechaCobro'] = ahora.toLocaleDateString('es-MX');
       planillaActiva.facturas[facturaSel.folio].saldo = saldoDespues;
       planillaActiva.facturas[facturaSel.folio].estado = saldoDespues<=0.005 ? 'cobrada' : 'abono';
     }
+    // Actualizar el saldo a favor del cliente (restar lo aplicado, sumar lo generado)
+    if(claveCliente && (favorAplicado>0 || favorGenerado>0)){
+      var neto = favorGenerado - favorAplicado;
+      var nuevoSaldo = Math.max(0, saldoAFavorDisponible + neto);
+      updates['saldosAFavor/'+claveCliente+'/nombre'] = facturaSel.nombre;
+      updates['saldosAFavor/'+claveCliente+'/zona'] = miZona;
+      updates['saldosAFavor/'+claveCliente+'/monto'] = nuevoSaldo;
+    }
     ultimoTicket = Object.assign({}, registro, {id: ref.key});
     return db.ref().update(updates);
+  }).then(function(){
+    // Registrar en el historial (log) del saldo a favor, para el Tablero
+    var logPromises = [];
+    if(claveCliente && favorGenerado>0){
+      logPromises.push(db.ref('saldosAFavorLog/'+claveCliente).push({tipo:'generado', monto:favorGenerado, folio:facturaSel.folio, vendedor:miNombre, ts:ahora.getTime()}));
+    }
+    if(claveCliente && favorAplicado>0){
+      logPromises.push(db.ref('saldosAFavorLog/'+claveCliente).push({tipo:'aplicado', monto:favorAplicado, folio:facturaSel.folio, vendedor:miNombre, ts:ahora.getTime()}));
+    }
+    return Promise.all(logPromises);
   }).then(function(){
     mostrarRecibo(ultimoTicket);
   }).catch(function(e){ toast('Error al guardar: '+e.message,'err'); });
@@ -870,7 +950,10 @@ function mostrarRecibo(r){
   document.getElementById('tarjetaForm').style.display = 'none';
   document.getElementById('tarjetaRecibo').style.display = '';
   // Nota: devolución y descuento NO se muestran en este recibo — el cliente solo ve lo que pagó.
-  // El detalle completo sigue guardado en Firebase para consulta interna.
+  // El saldo a favor SÍ se muestra — es dinero del cliente, tiene derecho a verlo.
+  var favorHtml = (r.favorGenerado>0)
+    ? '<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 12px;margin-top:10px;text-align:center;font-size:12px;font-weight:800;color:var(--verde);">💰 Te quedan '+fmt(r.favorGenerado)+' a favor para tu próxima compra</div>'
+    : '';
   document.getElementById('ticketHTML').innerHTML =
     '<div class="ticket-head"><div class="agro">AGROSIN</div><div class="tit">Comprobante de Cobro</div></div>'+
     '<div class="ticket-body">'+
@@ -881,6 +964,7 @@ function mostrarRecibo(r){
       '<div class="ticket-row"><span class="lbl">Fecha</span><span class="val">'+r.fecha+'</span></div>'+
       '<div class="ticket-monto"><div class="n">'+fmt(r.monto)+'</div><div class="l">Monto recibido</div></div>'+
       (r.saldoDespues>0.005 ? '<div style="text-align:center;color:var(--ora);font-weight:800;font-size:12px;margin-top:-8px;">Queda pendiente: '+fmt(r.saldoDespues)+'</div>' : '<div style="text-align:center;color:var(--verde);font-weight:800;font-size:12px;margin-top:-8px;">FACTURA LIQUIDADA ✓</div>')+
+      favorHtml+
     '</div>'+
     '<div class="ticket-foot">Comprobante generado por el sistema de cobranza AGROSIN</div>';
 }
@@ -890,7 +974,8 @@ function seguirCobrando(){
 }
 /* ---------- Generar imagen del ticket (canvas) — igual que ya funcionaba en el piloto ---------- */
 function dibujarTicketCanvas(r){
-  var W = 720, H = r.saldoDespues>0.005 ? 780 : 760, esc = 2;
+  var extra = (r.saldoDespues>0.005 || r.favorGenerado>0) ? 20 : 0;
+  var W = 720, H = 760 + extra, esc = 2;
   var cv = document.createElement('canvas');
   cv.width = W*esc; cv.height = H*esc;
   var ctx = cv.getContext('2d');
@@ -951,14 +1036,24 @@ function dibujarTicketCanvas(r){
   ctx.font = '800 17px Arial';
   ctx.fillText('MONTO RECIBIDO', W/2, y+105);
 
+  var yFinal = y+145;
   if(r.saldoDespues>0.005){
     ctx.fillStyle = '#ea580c';
     ctx.font = '900 22px Arial';
-    ctx.fillText('Queda pendiente: '+fmt(r.saldoDespues), W/2, y+145);
+    ctx.fillText('Queda pendiente: '+fmt(r.saldoDespues), W/2, yFinal);
   } else {
     ctx.fillStyle = '#15803d';
     ctx.font = '900 22px Arial';
-    ctx.fillText('FACTURA LIQUIDADA ✓', W/2, y+145);
+    ctx.fillText('FACTURA LIQUIDADA ✓', W/2, yFinal);
+  }
+  if(r.favorGenerado>0){
+    var yFavor = yFinal + 34;
+    ctx.fillStyle = '#f0fdf4';
+    rr(60, yFavor-24, W-120, 40, 8); ctx.fill();
+    ctx.strokeStyle = '#86efac'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#15803d';
+    ctx.font = '800 17px Arial';
+    ctx.fillText('💰 Te quedan '+fmt(r.favorGenerado)+' a favor', W/2, yFavor+2);
   }
 
   ctx.fillStyle = '#f8fafc';
