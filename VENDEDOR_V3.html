@@ -864,12 +864,11 @@ function registrarCobro(){
     favorAplicado = aplicarSaldoFavor ? Math.min(saldoAFavorDisponible, subtotal) : 0;
     var subtotalConFavor = Math.max(0, subtotal - favorAplicado);
     var pagado = parseFloat(document.getElementById('inpMonto').value) || 0;
+    monto = pagado; // el dinero REAL que cambió de manos — así debe verse en todo el tablero, depósitos y reconciliación
     if(pagado > subtotalConFavor){
-      favorGenerado = pagado - subtotalConFavor; // pagó de más -> se guarda a su favor
-      monto = subtotalConFavor; // a la factura solo le corresponde esto, no más
+      favorGenerado = pagado - subtotalConFavor; // la parte de ese dinero que le sobra a la factura, se guarda a su favor
       saldoDespues = 0;
     } else {
-      monto = pagado;
       saldoDespues = Math.max(0, subtotalConFavor - pagado);
     }
   }
