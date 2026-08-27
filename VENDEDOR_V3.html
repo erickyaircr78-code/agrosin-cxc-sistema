@@ -488,10 +488,10 @@ var ultimoTicket = null;
 var pendientes = [], seleccion = {}, entregasPendientes = [], rutaActual = 'banco';
 var PERSONAL_OFICINA = ['LUPE','CARI','KAREN','JENNIFER','NANCY','SAMANTA','CLAUDIA','MIRI','MEMO'];
 
-function toast(msg, tipo){
+function toast(msg, tipo, duracion){
   var t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast show ' + (tipo||'');
-  setTimeout(function(){ t.className = 'toast'; }, 2600);
+  setTimeout(function(){ t.className = 'toast'; }, duracion || 2600);
 }
 
 /* ── Selección de vendedor ── */
@@ -901,6 +901,10 @@ function toggleHermana(folio){
     var hermanas = buscarFacturasHermanas();
     var calc = calcularAsignaciones(favorGeneradoActual, hermanas, facturasHermanasSeleccionadas);
     if(calc.restante <= 0.005){ toast('Ya se repartió todo el saldo entre las facturas elegidas','warn'); return; }
+    var f = hermanas.find(function(h){ return h.folio===folio; });
+    if(f && calc.restante < f.saldo - 0.005){
+      toast('⚠️ No alcanza para cubrirla completa — solo se le aplican '+fmt(calc.restante)+' de '+fmt(f.saldo)+', le queda pendiente el resto','warn',4500);
+    }
     facturasHermanasSeleccionadas.push(folio);
   }
   renderFacturasHermanas(buscarFacturasHermanas());
