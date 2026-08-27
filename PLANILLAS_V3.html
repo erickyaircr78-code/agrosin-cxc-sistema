@@ -1021,7 +1021,15 @@ function verDetalle(r){
 // ── DESCARGAR PLANILLA ────────────────────────────────────
 // Colores: Descuento=naranja, Devolución=azul, Sdo.Favor Generado=verde, Sdo.Favor Aplicado=verde claro
 var COLOR_DESCUENTO = 'FFFDE68A', COLOR_DEVOLUCION = 'FFBFDBFE', COLOR_FAVOR_GEN = 'FF86EFAC', COLOR_FAVOR_APL = 'FFD1FAE5';
+var COLOR_FILA_ESPECIAL = 'FFFFFAE6'; // tono suave — se ve de volada sin recorrer la fila
 function pintarFilaEspecial(row, f){
+  var tieneAlgoEspecial = (f.descuento>0) || (f.devolucion>0) || (f.favorGenerado>0) || (f.favorAplicado>0);
+  if(!tieneAlgoEspecial) return;
+  // Primero, todo el renglón en tono suave — para que se note sin tener que recorrerlo
+  row.eachCell({includeEmpty:true}, function(celda){
+    celda.fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FILA_ESPECIAL}};
+  });
+  // Encima, la celda específica con su color más marcado — para saber exactamente cuál caso es
   if(f.descuento>0) row.getCell('Descuento').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DESCUENTO}};
   if(f.devolucion>0) row.getCell('Devolución').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DEVOLUCION}};
   if(f.favorGenerado>0) row.getCell('Sdo. Favor Generado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_GEN}};

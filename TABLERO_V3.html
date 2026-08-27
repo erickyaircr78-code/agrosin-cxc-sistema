@@ -318,6 +318,13 @@ input[type=file]{display:none;}
       <div class="bhdr"><span class="bttl">🧾 Efectivo cobrado vs. confirmado</span></div>
       <div class="bpanel" style="font-size:11px;color:var(--ink2);">Cobrado en efectivo vs. depositado + entregado en oficina. Si queda diferencia, sigue pendiente de resolver.</div>
     </div>
+    <div class="tlbr">
+      <input class="srch" id="reconBusca" placeholder="Buscar vendedor…" oninput="renderReconciliacion()">
+      <select class="fsel" id="reconZona" onchange="renderReconciliacion()">
+        <option value="">Todas las zonas</option><option value="CDMX">CDMX</option><option value="MORELOS">Morelos</option><option value="PUEBLA">Puebla</option>
+      </select>
+    </div>
+    <div class="bkpis" id="reconTotales" style="margin-bottom:14px;"></div>
     <div class="tbl-o">
       <div class="tbl-s">
         <table>
@@ -509,6 +516,7 @@ function setZona(z, el){
   el.classList.add('act');
   document.getElementById('segZona').value = z==='all' ? '' : z;
   document.getElementById('fRZona').value = z==='all' ? '' : z;
+  document.getElementById('reconZona').value = z==='all' ? '' : z;
   refrescarTodo();
 }
 document.getElementById('zall').addEventListener('click', function(){ setZona('all', this); });
@@ -651,10 +659,13 @@ function renderReconciliacion(){
   var todos = cobrosTodos.concat(fueraPlanillaTodos).filter(function(c){return c.tipo==='Efectivo';});
   var tbody = document.getElementById('tbodyRecon');
   var zClass = {CDMX:'zc',MORELOS:'zm',PUEBLA:'zp'};
+  var q = (document.getElementById('reconBusca').value||'').trim().toUpperCase();
+  var zSel = document.getElementById('reconZona').value;
   var filas = [];
   Object.keys(ZONAS).forEach(function(z){
-    if(zonaActiva!=='all' && zonaActiva!==z) return;
+    if(zSel && zSel!==z) return;
     ZONAS[z].forEach(function(nombre){
+      if(q && nombre.toUpperCase().indexOf(q)<0) return;
       var k = key(nombre);
       var cobrado = todos.filter(function(c){return c.key===k;}).reduce(function(s,c){return s+(c.monto||0);},0);
       if(cobrado<=0) return;
@@ -665,7 +676,19 @@ function renderReconciliacion(){
     });
   });
   filas.sort(function(a,b){ return b.diferencia-a.diferencia; });
-  if(!filas.length){ tbody.innerHTML='<tr><td colspan="6" class="remp">Sin cobros en efectivo todavía</td></tr>'; return; }
+
+  // Totales generales de lo que se está mostrando (respeta el filtro activo)
+  var totCobrado = filas.reduce(function(s,f){return s+f.cobrado;},0);
+  var totDepositado = filas.reduce(function(s,f){return s+f.depositado;},0);
+  var totEntregado = filas.reduce(function(s,f){return s+f.entregado;},0);
+  var totDiferencia = filas.reduce(function(s,f){return s+f.diferencia;},0);
+  document.getElementById('reconTotales').innerHTML =
+    '<div class="bkpi"><div class="lbl">Total cobrado efectivo</div><div class="val" style="color:var(--grn)">'+fmt(totCobrado)+'</div></div>'+
+    '<div class="bkpi"><div class="lbl">Total depositado</div><div class="val" style="color:var(--acc)">'+fmt(totDepositado)+'</div></div>'+
+    '<div class="bkpi"><div class="lbl">Total entregado oficina</div><div class="val" style="color:var(--acc)">'+fmt(totEntregado)+'</div></div>'+
+    '<div class="bkpi"><div class="lbl">Diferencia total</div><div class="val" style="color:'+(totDiferencia>0.5?'var(--red)':'var(--grn)')+'">'+fmt(totDiferencia)+'</div></div>';
+
+  if(!filas.length){ tbody.innerHTML='<tr><td colspan="6" class="remp">Sin cobros en efectivo para este filtro</td></tr>'; return; }
   tbody.innerHTML = filas.map(function(f){
     var difTxt = f.diferencia<=0.5 ? '<span class="rpill dep">Al día</span>' : '<span class="tfal fbd">'+fmt(f.diferencia)+'</span>';
     return '<tr><td class="vname">'+f.nombre+'</td><td><span class="zbadge '+zClass[f.zona]+'">'+f.zona+'</span></td><td class="tn">'+fmt(f.cobrado)+'</td><td class="tn">'+fmt(f.depositado)+'</td><td class="tn">'+fmt(f.entregado)+'</td><td class="tn">'+difTxt+'</td></tr>';
