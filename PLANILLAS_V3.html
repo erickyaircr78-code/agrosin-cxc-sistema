@@ -6,7 +6,7 @@
 <title>Ferregama · Planillas</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--ora:#F15A24;--mar:#07101F;--ver:#15803d;--roj:#dc2626;--ama:#d97706;--gri:#64748b;--bor:#E2E8F0;--fon:#F4F5F7;--bla:#fff;--tex:#07101F}
@@ -336,18 +336,24 @@ function cargarSidebar(){
   });
 }
 
-// ── CARGAR MAIN ───────────────────────────────────────────
+// ── CARGAR MAIN (en vivo — se actualiza solo cuando cambia cualquier planilla) ──
+var _mainListenersActivos = false;
 function cargarMain(){
+  if(_mainListenersActivos) return; // ya está escuchando en vivo, no hace falta repetir
+  _mainListenersActivos = true;
   el('main').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Cargando planillas…</div></div>';
   var vends=ZONAS[G.zona]||[];
-  var results=[], done=0;
+  var resultsMap = {};
+  var yaReportaron = {};
+  var completo = false;
   vends.forEach(function(v){
-    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(s){
+    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).on('value', function(s){
       var d=s.val();
-      results.push({ vendor:v, hoja:d?Object.values(d)[0]:null, hojaKey:d?Object.keys(d)[0]:null });
-      done++;
-      if(done===vends.length) renderMain(results);
-    }).catch(function(){ done++; results.push({vendor:v,hoja:null}); if(done===vends.length) renderMain(results); });
+      resultsMap[v] = { vendor:v, hoja:d?Object.values(d)[0]:null, hojaKey:d?Object.keys(d)[0]:null };
+      yaReportaron[v] = true;
+      if(!completo && Object.keys(yaReportaron).length===vends.length) completo = true;
+      if(completo) renderMain(vends.map(function(vv){ return resultsMap[vv]; }));
+    }, function(err){ console.error(err); });
   });
 }
 
@@ -448,7 +454,8 @@ function renderMain(results){
 function buildCard(r, esCerrada){
   var h = r.hoja;
   var total = h.totalFacturas||0;
-  var cob   = h.cobradas||0;
+  var cob = 0;
+  if(h.facturas) Object.values(h.facturas).forEach(function(f){ if(f.estado==='cobrada') cob++; });
   var pct   = total>0?Math.round(cob/total*100):0;
   var saldo = 0;
   if(h.facturas) Object.values(h.facturas).forEach(function(f){ saldo+=f.saldo||0; });
@@ -1012,35 +1019,70 @@ function verDetalle(r){
 }
 
 // ── DESCARGAR PLANILLA ────────────────────────────────────
-function descargarPlanilla(r, formato){
+// Colores: Descuento=naranja, Devolución=azul, Sdo.Favor Generado=verde, Sdo.Favor Aplicado=verde claro
+var COLOR_DESCUENTO = 'FFFDE68A', COLOR_DEVOLUCION = 'FFBFDBFE', COLOR_FAVOR_GEN = 'FF86EFAC', COLOR_FAVOR_APL = 'FFD1FAE5';
+function pintarFilaEspecial(row, f){
+  if(f.descuento>0) row.getCell('Descuento').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DESCUENTO}};
+  if(f.devolucion>0) row.getCell('Devolución').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DEVOLUCION}};
+  if(f.favorGenerado>0) row.getCell('Sdo. Favor Generado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_GEN}};
+  if(f.favorAplicado>0) row.getCell('Sdo. Favor Aplicado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_APL}};
+}
+var COLUMNAS_EXCEL = [
+  {header:'Hoja',key:'Hoja',width:8}, {header:'Cobrador',key:'Cobrador',width:16},
+  {header:'Folio',key:'Folio',width:14}, {header:'Clave',key:'Clave',width:7},
+  {header:'Nombre',key:'Nombre',width:42}, {header:'Fecha Factura',key:'Fecha Factura',width:12},
+  {header:'Vencimiento',key:'Vencimiento',width:12}, {header:'Atraso (días)',key:'Atraso (días)',width:10},
+  {header:'Total Original',key:'Total Original',width:14}, {header:'Saldo',key:'Saldo',width:14},
+  {header:'Efectivo',key:'Efectivo',width:12}, {header:'Cheque',key:'Cheque',width:12},
+  {header:'A Cuenta',key:'A Cuenta',width:12}, {header:'Banco',key:'Banco',width:12},
+  {header:'Tipo de Cobro',key:'Tipo de Cobro',width:14}, {header:'Estado',key:'Estado',width:12},
+  {header:'Fecha Cobro',key:'Fecha Cobro',width:12}, {header:'Comprobante',key:'Comprobante',width:12},
+  {header:'Descuento',key:'Descuento',width:12}, {header:'Devolución',key:'Devolución',width:12},
+  {header:'Sdo. Favor Generado',key:'Sdo. Favor Generado',width:16}, {header:'Sdo. Favor Aplicado',key:'Sdo. Favor Aplicado',width:16},
+  {header:'Observaciones',key:'Observaciones',width:16}
+];
+function filaDesdeFactura(h, vendor, f){
+  return {
+    'Hoja':h.folio_hoja, 'Cobrador':vendor, 'Folio':f.folio, 'Clave':f.clave||'',
+    'Nombre':f.nombre, 'Fecha Factura':f.fecha, 'Vencimiento':f.vencimiento,
+    'Atraso (días)':f.dias||0, 'Total Original':f.total||0, 'Saldo':f.saldo||0,
+    'Efectivo':f.tipo==='Efectivo'?(f.montoCobrado||0):0,
+    'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
+    'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
+    'Banco':f.banco||'', 'Tipo de Cobro':f.tipo||'', 'Estado':f.estado||'pendiente',
+    'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO',
+    'Descuento':f.descuento||0, 'Devolución':f.devolucion||0,
+    'Sdo. Favor Generado':f.favorGenerado||0, 'Sdo. Favor Aplicado':f.favorAplicado||0,
+    'Observaciones':''
+  };
+}
+async function descargarPlanilla(r, formato){
   var h = r.hoja;
   if(h.cargadaPor && h.cargadaPor !== G.user){ toast('Esta planilla fue cargada por '+h.cargadaPor,'warn'); return; }
   var facts = h.facturas ? Object.values(h.facturas) : [];
   if(!facts.length){ toast('Sin facturas','warn'); return; }
-  // Ordenar por índice original del PDF
   facts.sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
-  var rows = facts.map(function(f){
-    return {
-      'Hoja':h.folio_hoja, 'Cobrador':r.vendor, 'Folio':f.folio, 'Clave':f.clave||'',
-      'Nombre':f.nombre, 'Fecha Factura':f.fecha, 'Vencimiento':f.vencimiento,
-      'Atraso (días)':f.dias||0, 'Total Original':f.total||0, 'Saldo':f.saldo||0,
-      'Efectivo':f.tipo==='Efectivo'?(f.montoCobrado||0):0,
-      'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
-      'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
-      'Banco':f.banco||'', 'Tipo de Cobro':f.tipo||'', 'Estado':f.estado||'pendiente',
-      'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO',
-      'Sdo. Favor Generado':f.favorGenerado||0, 'Sdo. Favor Aplicado':f.favorAplicado||0,
-      'Observaciones':''
-    };
-  });
+  var rows = facts.map(function(f){ return filaDesdeFactura(h, r.vendor, f); });
   var nombre = 'Planilla_'+r.vendor+'_Hoja'+h.folio_hoja+'_'+h.fecha.replace(/\//g,'-');
   if(formato==='excel'){
-    var ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols']=[{wch:8},{wch:16},{wch:14},{wch:7},{wch:42},{wch:12},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, r.vendor);
-    XLSX.writeFile(wb, nombre+'.xlsx');
-    toast('✅ Excel descargado','ok');
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet(r.vendor);
+    ws.columns = COLUMNAS_EXCEL;
+    ws.getRow(1).font = {bold:true};
+    ws.getRow(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF0F172A'}};
+    ws.getRow(1).font = {bold:true, color:{argb:'FFFFFFFF'}};
+    rows.forEach(function(rowData, i){
+      var row = ws.addRow(rowData);
+      pintarFilaEspecial(row, facts[i]);
+    });
+    await wb.xlsx.writeBuffer().then(function(buf){
+      var blob = new Blob([buf], {type:'application/octet-stream'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombre+'.xlsx';
+      a.click();
+    });
+    toast('✅ Excel descargado — colores marcan descuento/devolución/saldo a favor','ok');
   } else {
     var csv = [Object.keys(rows[0]).join(',')].concat(rows.map(function(row){ return Object.values(row).map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(','); }));
     var blob = new Blob([csv.join('\n')],{type:'text/csv;charset=utf-8;'});
@@ -1052,7 +1094,7 @@ function descargarPlanilla(r, formato){
 // ── DESCARGAR TODAS ───────────────────────────────────────
 function descargarTodas(formato){
   var vends = ZONAS[G.zona]||[];
-  var allRows = [], done=0;
+  var allRows = [], allFacts = [], done=0;
   toast('⏳ Preparando descarga…','');
   vends.forEach(function(v){
     db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
@@ -1062,18 +1104,8 @@ function descargarTodas(formato){
         if(h&&h.estado==='activa'&&h.facturas&&h.cargadaPor===G.user){
           var factsArr = Object.values(h.facturas).sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
           factsArr.forEach(function(f){
-            allRows.push({
-              'Hoja':h.folio_hoja,'Cobrador':v,'Folio':f.folio,'Clave':f.clave||'','Nombre':f.nombre,
-              'Fecha Factura':f.fecha,'Vencimiento':f.vencimiento,'Atraso (días)':f.dias||0,
-              'Total Original':f.total||0,'Saldo':f.saldo||0,
-              'Efectivo':f.tipo==='Efectivo'?(f.montoCobrado||0):0,
-              'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
-              'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
-              'Banco':f.banco||'','Tipo de Cobro':f.tipo||'','Estado':f.estado||'pendiente',
-              'Fecha Cobro':f.fechaCobro||'','Comprobante':f.tieneFoto?'SÍ':'NO',
-              'Sdo. Favor Generado':f.favorGenerado||0,'Sdo. Favor Aplicado':f.favorAplicado||0,
-              'Observaciones':''
-            });
+            allRows.push(filaDesdeFactura(h, v, f));
+            allFacts.push(f);
           });
         }
       }
@@ -1082,11 +1114,24 @@ function descargarTodas(formato){
         if(!allRows.length){ toast('Sin planillas activas cargadas por ti','warn'); return; }
         var fecha=new Date().toLocaleDateString('es-MX').replace(/\//g,'-');
         var nombre='Planillas_'+G.zona+'_'+fecha;
-        var ws=XLSX.utils.json_to_sheet(allRows);
-        var wb=XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb,ws,'Planillas '+G.zona);
-        XLSX.writeFile(wb,nombre+'.xlsx');
-        toast('✅ Excel con '+allRows.length+' facturas descargado','ok');
+        (async function(){
+          var wb = new ExcelJS.Workbook();
+          var ws = wb.addWorksheet('Planillas '+G.zona);
+          ws.columns = COLUMNAS_EXCEL;
+          ws.getRow(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF0F172A'}};
+          ws.getRow(1).font = {bold:true, color:{argb:'FFFFFFFF'}};
+          allRows.forEach(function(rowData, i){
+            var row = ws.addRow(rowData);
+            pintarFilaEspecial(row, allFacts[i]);
+          });
+          var buf = await wb.xlsx.writeBuffer();
+          var blob = new Blob([buf], {type:'application/octet-stream'});
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = nombre+'.xlsx';
+          a.click();
+          toast('✅ Excel con '+allRows.length+' facturas descargado — colores marcan lo especial','ok');
+        })();
       }
     });
   });

@@ -455,7 +455,8 @@ function borrarPruebasTablero(){
   Promise.all([
     db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(),
     db.ref('depositos').remove(), db.ref('entregasOficina').remove(),
-    db.ref('carteraSemanal').remove(), db.ref('carteraSemanalMeta').remove()
+    db.ref('carteraSemanal').remove(), db.ref('carteraSemanalMeta').remove(),
+    db.ref('saldosAFavor').remove(), db.ref('saldosAFavorLog').remove()
   ]).then(function(){
     cerrarModalBorrar();
     toast('✅ Pruebas borradas','ok'); setTimeout(function(){location.reload();},1200);

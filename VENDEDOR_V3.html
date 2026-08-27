@@ -423,7 +423,9 @@ function borrarPruebasVendedor(){
     db.ref('cobros').remove(),
     db.ref('depositos').remove(),
     db.ref('entregasOficina').remove(),
-    db.ref('cobrosFueraPlanilla').remove()
+    db.ref('cobrosFueraPlanilla').remove(),
+    db.ref('saldosAFavor').remove(),
+    db.ref('saldosAFavorLog').remove()
   ]).then(function(){
     cerrarModalBorrar();
     toast('✅ Pruebas de cobros borradas','ok');
