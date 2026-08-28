@@ -234,6 +234,11 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           <label>Monto total de la factura ($)</label>
           <input type="number" id="inpFPTotal" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="validarFueraPlanilla()">
         </div>
+        <div class="campo">
+          <label>Clave del cliente (opcional)</label>
+          <input type="text" id="inpFPClave" placeholder="Ej. 13803" inputmode="numeric">
+          <div style="font-size:10px;color:var(--gris);margin-top:4px;line-height:1.4;">Si la sabes, escríbela — así, si paga de más, el saldo se guarda a su favor.</div>
+        </div>
         <div id="errFueraPlanilla" style="display:none;font-size:12px;font-weight:800;color:var(--rojo);margin-bottom:8px;"></div>
         <button type="button" class="btn-reg" id="btnContinuarFP" onclick="continuarFueraPlanilla()" disabled><span>➡️</span> Continuar con este cobro</button>
         <button type="button" class="btn-secundario" onclick="cancelarFueraPlanilla()">Cancelar</button>
@@ -679,6 +684,7 @@ function abrirCobroFueraPlanilla(){
   document.getElementById('inpFPFolio').value = '';
   document.getElementById('inpFPNombre').value = '';
   document.getElementById('inpFPTotal').value = '';
+  document.getElementById('inpFPClave').value = '';
   document.getElementById('errFueraPlanilla').style.display = 'none';
   document.getElementById('btnContinuarFP').disabled = true;
 }
@@ -704,8 +710,9 @@ function continuarFueraPlanilla(){
   var folio = document.getElementById('inpFPFolio').value.trim().toUpperCase();
   var nombre = document.getElementById('inpFPNombre').value.trim();
   var total = parseFloat(document.getElementById('inpFPTotal').value) || 0;
+  var claveFP = document.getElementById('inpFPClave').value.trim() || null;
   if(!RE_FOLIO_FP.test(folio) || !nombreValidoFP(nombre) || total<=0){ toast('Revisa los datos','err'); return; }
-  facturaSel = {folio: folio, nombre: nombre, saldo: total, total: total, vencimiento: '—', clave: null};
+  facturaSel = {folio: folio, nombre: nombre, saldo: total, total: total, vencimiento: '—', clave: claveFP};
   esFueraDePlanilla = true;
   document.getElementById('tarjetaFueraPlanilla').style.display = 'none';
   mostrarFormularioCobro();
@@ -715,10 +722,16 @@ function mostrarFormularioCobro(){
   document.getElementById('tarjetaForm').style.display = '';
   document.getElementById('tarjetaRecibo').style.display = 'none';
   var box = document.getElementById('factSelBox');
+  var yaAbonadoHtml = '';
+  if(facturaSel.estado === 'abono' && facturaSel.total > facturaSel.saldo){
+    var yaAbonado = facturaSel.total - facturaSel.saldo;
+    yaAbonadoHtml = '<div style="font-size:12px;color:var(--verde);font-weight:800;margin-top:4px;">✓ Ya se abonó '+fmt(yaAbonado)+' de '+fmt(facturaSel.total)+' original</div>';
+  }
   box.innerHTML =
     '<div class="fs-cliente">'+facturaSel.nombre+(esFueraDePlanilla?' <span style="color:var(--ora);font-size:11px">· FUERA DE PLANILLA</span>':'')+'</div>'+
     '<div class="fs-meta">Folio '+facturaSel.folio+'</div>'+
-    '<div class="fs-saldo">Saldo: '+fmt(facturaSel.saldo)+'</div>'+
+    '<div class="fs-saldo">Saldo restante: '+fmt(facturaSel.saldo)+'</div>'+
+    yaAbonadoHtml+
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
@@ -1182,6 +1195,8 @@ function registrarCobro(){
       updates['saldosAFavor/'+claveCliente+'/nombre'] = facturaSel.nombre;
       updates['saldosAFavor/'+claveCliente+'/zona'] = miZona;
       updates['saldosAFavor/'+claveCliente+'/monto'] = nuevoSaldo;
+    } else if(!claveCliente && favorGeneradoRestante>0){
+      toast('⚠️ OJO: '+fmt(favorGeneradoRestante)+' de más NO se pudo guardar a favor (sin clave del cliente) — avísale a la oficina de este pago','warn',6000);
     }
     ultimoTicket = Object.assign({}, registro, {id: ref.key});
     var cadenaUpdate = db.ref().update(updates);
