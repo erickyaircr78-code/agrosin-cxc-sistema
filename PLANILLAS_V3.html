@@ -116,6 +116,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--fon);min-height:100vh;
 .bdg{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
 .bdg-r{background:#FEE2E2;color:#991B1B}
 .bdg-a{background:#FEF3C7;color:#92400E}
+.bdg-ab{background:#FFEDD5;color:#C2410C}
 .bdg-v{background:#DCFCE7;color:#166534}
 .vend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
 .vsb{background:var(--bla);border:1.5px solid var(--bor);border-radius:10px;padding:14px;text-align:center;cursor:pointer}
@@ -1018,7 +1019,9 @@ function verDetalle(r){
         '<div class="th">Folio</div><div class="th">Nombre</div><div class="th">Venc.</div><div class="th">Saldo</div><div class="th">Estado</div>'+
       '</div>';
   facts.forEach(function(f){
-    var est = f.estado==='cobrada'?'<span class="bdg bdg-v">Cobrado</span>':'<span class="bdg bdg-a">Pend.</span>';
+    var est = f.estado==='cobrada' ? '<span class="bdg bdg-v">Cobrado</span>'
+      : f.estado==='abono' ? '<span class="bdg bdg-ab">Abono</span>'
+      : '<span class="bdg bdg-a">Pend.</span>';
     html +=
       '<div class="tbl-row" style="grid-template-columns:110px 1fr 90px 80px 70px">'+
         '<div class="td" style="font-family:monospace;font-size:10px;color:var(--gri)">'+f.folio+'</div>'+
