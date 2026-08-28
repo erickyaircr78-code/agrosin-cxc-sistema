@@ -65,6 +65,10 @@ body{font-family:'Montserrat',sans-serif;background:var(--fon);min-height:100vh;
 .pc-vend{font-size:14px;font-weight:700;color:#fff}
 .pc-hoja{font-size:10px;color:rgba(255,255,255,0.4);font-family:'JetBrains Mono',monospace;margin-top:2px}
 .pc-est{font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700}
+.pc-badges{display:flex;flex-direction:column;gap:5px;align-items:flex-end;}
+.pc-desc{font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.pc-desc.si{background:#dcfce7;color:#15803d;}
+.pc-desc.no{background:#fef3c7;color:#92400e;}
 .pc-est.activa{background:rgba(253,186,116,0.2);color:#FCD34D}
 .pc-est.cerrada{background:rgba(134,239,172,0.2);color:#86EFAC}
 .pc-body{padding:14px 16px}
@@ -140,6 +144,12 @@ input[type=file]{display:none}
 .hist-info{font-size:11px;color:var(--gri)}
 .hist-info strong{color:var(--tex);display:block;margin-bottom:2px}
 .warn-box{background:#FEF3C7;border-radius:8px;padding:8px 12px;font-size:10px;color:#92400E;margin-top:8px}
+.fp-banner{background:#fff7ed;border-bottom:2px solid #fed7aa;padding:12px 24px;}
+.fp-tit{font-size:12px;font-weight:800;color:#c2410c;margin-bottom:2px;}
+.fp-sub{font-size:11px;color:#92600a;margin-bottom:8px;}
+.fp-table{width:100%;border-collapse:collapse;font-size:11px;background:#fff;border-radius:8px;overflow:hidden;}
+.fp-table th{background:#0f172a;color:#fff;padding:6px 10px;text-align:left;font-size:9px;text-transform:uppercase;}
+.fp-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9;}
 </style>
 </head>
 <body>
@@ -164,6 +174,7 @@ input[type=file]{display:none}
   </div>
 </div>
 
+<div id="avisoFueraPlanilla"></div>
 <div class="layout">
   <div class="sidebar">
     <div class="sb-title">Equipo de entrega</div>
@@ -341,6 +352,7 @@ var _mainListenersActivos = false;
 function cargarMain(){
   if(_mainListenersActivos) return; // ya está escuchando en vivo, no hace falta repetir
   _mainListenersActivos = true;
+  cargarFueraDePlanilla();
   el('main').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Cargando planillas…</div></div>';
   var vends=ZONAS[G.zona]||[];
   var resultsMap = {};
@@ -462,11 +474,14 @@ function buildCard(r, esCerrada){
   var card = document.createElement('div');
   card.className = 'pc';
   var headBg = esCerrada ? '#374151' : 'var(--mar)';
+  var badgeDescarga = h.descargadaTs
+    ? '<span class="pc-desc si">📥 Descargada</span>'
+    : '<span class="pc-desc no">⚠️ Sin descargar</span>';
   card.innerHTML =
     '<div class="pc-head" style="background:'+headBg+'">'+
       '<div><div class="pc-vend">'+r.vendor+'</div>'+
       '<div class="pc-hoja">Hoja '+h.folio_hoja+' · '+h.fecha+'</div></div>'+
-      '<span class="pc-est '+(esCerrada?'cerrada':'activa')+'">'+(esCerrada?'Cerrada':'Activa')+'</span>'+
+      '<div class="pc-badges"><span class="pc-est '+(esCerrada?'cerrada':'activa')+'">'+(esCerrada?'Cerrada':'Activa')+'</span>'+badgeDescarga+'</div>'+
     '</div>'+
     '<div class="pc-body">'+
       '<div class="pc-stats">'+
@@ -696,7 +711,7 @@ function extraerFacturas(texto){
   if(dm) fecha = dm[1];
 
   // Patrón global — funciona con texto pdfjs en una sola línea
-  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8})\s+(\d{4,5})\s+([A-ZA-Za-z0-9\u00C0-\u00FF\s\(\)\.]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
+  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8}|ARM\d{5,8})\s+(\d{4,5})\s+([A-ZA-Za-z0-9\u00C0-\u00FF\s\(\)\.]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
   var facturas = [], vistos = {}, m;
 
   while((m = PFACT.exec(texto)) !== null){
@@ -1018,6 +1033,13 @@ function verDetalle(r){
   el('modalDet').style.display = 'flex';
 }
 
+// ── Marca la planilla como descargada — guarda la fecha, no borra nada más ──
+function marcarComoDescargada(vendor, hojaTs){
+  var updates = {};
+  updates['planillas/'+G.zona+'/'+key(vendor)+'/'+hojaTs+'/descargadaTs'] = Date.now();
+  db.ref().update(updates).catch(function(e){ console.error('No se pudo marcar como descargada:', e); });
+}
+
 // ── DESCARGAR PLANILLA ────────────────────────────────────
 // Colores: Descuento=naranja, Devolución=azul, Sdo.Favor Generado=verde, Sdo.Favor Aplicado=verde claro
 var COLOR_DESCUENTO = 'FFFDE68A', COLOR_DEVOLUCION = 'FFBFDBFE', COLOR_FAVOR_GEN = 'FF86EFAC', COLOR_FAVOR_APL = 'FFD1FAE5';
@@ -1090,6 +1112,7 @@ async function descargarPlanilla(r, formato){
       a.download = nombre+'.xlsx';
       a.click();
     });
+    marcarComoDescargada(r.vendor, h.ts);
     toast('✅ Excel descargado — colores marcan descuento/devolución/saldo a favor','ok');
   } else {
     var csv = [Object.keys(rows[0]).join(',')].concat(rows.map(function(row){ return Object.values(row).map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(','); }));
@@ -1102,7 +1125,7 @@ async function descargarPlanilla(r, formato){
 // ── DESCARGAR TODAS ───────────────────────────────────────
 function descargarTodas(formato){
   var vends = ZONAS[G.zona]||[];
-  var allRows = [], allFacts = [], done=0;
+  var allRows = [], allFacts = [], incluidas = [], done=0;
   toast('⏳ Preparando descarga…','');
   vends.forEach(function(v){
     db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
@@ -1115,6 +1138,7 @@ function descargarTodas(formato){
             allRows.push(filaDesdeFactura(h, v, f));
             allFacts.push(f);
           });
+          incluidas.push({vendor:v, ts:h.ts});
         }
       }
       done++;
@@ -1138,6 +1162,7 @@ function descargarTodas(formato){
           a.href = URL.createObjectURL(blob);
           a.download = nombre+'.xlsx';
           a.click();
+          incluidas.forEach(function(inc){ marcarComoDescargada(inc.vendor, inc.ts); });
           toast('✅ Excel con '+allRows.length+' facturas descargado — colores marcan lo especial','ok');
         })();
       }
@@ -1172,6 +1197,31 @@ var _tt;
 function toast(msg,tipo){
   var t=el('toast'); t.textContent=msg; t.className='toast show '+(tipo||'');
   clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('show'); },3200);
+}// ── COBROS FUERA DE PLANILLA — para que Lupe/equipo los vea y los capture en Microsip ──
+var _fpListenersActivos = false;
+function cargarFueraDePlanilla(){
+  if(_fpListenersActivos) return;
+  _fpListenersActivos = true;
+  db.ref('cobrosFueraPlanilla/'+G.zona).on('value', function(snap){
+    var lista = [];
+    snap.forEach(function(vc){ vc.forEach(function(c){ lista.push(Object.assign({id:c.key}, c.val())); }); });
+    lista.sort(function(a,b){ return b.ts-a.ts; });
+    renderFueraDePlanilla(lista);
+  });
+}
+function renderFueraDePlanilla(lista){
+  var box = document.getElementById('avisoFueraPlanilla');
+  if(!lista.length){ box.innerHTML=''; return; }
+  box.innerHTML =
+    '<div class="fp-banner">'+
+      '<div class="fp-tit">⚠️ Cobros fuera de planilla ('+lista.length+') — revisar y capturar en Microsip</div>'+
+      '<div class="fp-sub">Estos pagos no venían en ninguna planilla activada, un cliente adelantó el pago.</div>'+
+      '<table class="fp-table"><thead><tr><th>Fecha</th><th>Vendedor</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>'+
+      lista.slice(0,30).map(function(c){
+        return '<tr><td>'+c.fecha+'</td><td>'+c.vendor+'</td><td>'+c.cliente+'</td><td>'+c.folio+'</td><td>'+c.tipo+'</td><td style="font-weight:800;color:#15803d;">$'+(+c.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td></tr>';
+      }).join('')+
+      '</tbody></table>'+
+    '</div>';
 }
 </script>
 </body>
