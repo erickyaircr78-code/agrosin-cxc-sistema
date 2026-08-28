@@ -259,6 +259,14 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
             <option>SANTANDER</option><option>BBVA-9</option><option>BBVA-1</option><option>AZTECA</option>
             <option>BANBAJIO</option><option>BANREGIO</option>
           </select>
+          <div style="margin-top:10px;">
+            <label>📷 Adjuntar comprobante (opcional)</label>
+            <input type="file" accept="image/*" id="inpFotoComprobante" onchange="manejarFoto(event, 'comprobante')" style="padding:10px;border:2px dashed var(--borde);border-radius:12px;width:100%;font-size:12px;">
+            <div id="previewComprobante" style="display:none;margin-top:8px;">
+              <img id="imgPreviewComprobante" style="max-width:140px;border-radius:10px;border:2px solid var(--borde);">
+              <span class="fs-cambiar" onclick="quitarFoto('comprobante')" style="margin-left:10px;">quitar</span>
+            </div>
+          </div>
         </div>
 
         <div class="toggle-desc" onclick="toggleDevolucion()">
@@ -366,6 +374,14 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           <label>Monto que realmente depositaste ($)</label>
           <input type="number" id="inpMontoReal" step="0.01" inputmode="decimal">
         </div>
+        <div class="campo">
+          <label>📷 Foto de la ficha de depósito (opcional)</label>
+          <input type="file" accept="image/*" capture="environment" id="inpFotoDeposito" onchange="manejarFoto(event, 'deposito')" style="padding:10px;border:2px dashed var(--borde);border-radius:12px;width:100%;font-size:12px;">
+          <div id="previewDeposito" style="display:none;margin-top:8px;">
+            <img id="imgPreviewDeposito" style="max-width:140px;border-radius:10px;border:2px solid var(--borde);">
+            <span class="fs-cambiar" onclick="quitarFoto('deposito')" style="margin-left:10px;">quitar</span>
+          </div>
+        </div>
         <div id="diffBox"></div>
         <button type="button" class="btn-reg" onclick="confirmarDeposito()"><span>💾</span> Confirmar depósito</button>
       </div>
@@ -451,7 +467,8 @@ function borrarPruebasVendedor(){
     db.ref('entregasOficina').remove(),
     db.ref('cobrosFueraPlanilla').remove(),
     db.ref('saldosAFavor').remove(),
-    db.ref('saldosAFavorLog').remove()
+    db.ref('saldosAFavorLog').remove(),
+    db.ref('comprobantesFotos').remove()
   ]).then(function(){
     cerrarModalBorrar();
     toast('✅ Pruebas de cobros borradas','ok');
@@ -718,6 +735,9 @@ function mostrarFormularioCobro(){
   document.getElementById('bloqueFacturasHermanas').style.display = 'none';
   facturasHermanasSeleccionadas = [];
   favorGeneradoActual = 0;
+  fotoComprobanteBase64 = null;
+  document.getElementById('previewComprobante').style.display = 'none';
+  document.getElementById('inpFotoComprobante').value = '';
   elegirTipo('Efectivo');
   elegirModo('completo');
   recalcular();
@@ -805,6 +825,42 @@ function cancelarSeleccion(){
   document.getElementById('inpBuscar').value = '';
   document.getElementById('sinResultados').style.display = 'none';
   buscarFactura(); // vuelve a pintar la lista completa de pendientes, no la deja vacía
+}
+
+/* ── Fotos de comprobante — se comprimen fuerte y se guardan temporal (se borran al cerrar semana) ── */
+var fotoComprobanteBase64 = null;
+var fotoDepositoBase64 = null;
+function comprimirFoto(file, callback){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var maxAncho = 800;
+      var escala = Math.min(1, maxAncho / img.width);
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * escala);
+      canvas.height = Math.round(img.height * escala);
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL('image/jpeg', 0.55));
+    };
+    img.onerror = function(){ toast('No se pudo leer esa imagen','err'); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function manejarFoto(event, cual){
+  var file = event.target.files[0];
+  if(!file) return;
+  comprimirFoto(file, function(dataUrl){
+    if(cual==='comprobante'){ fotoComprobanteBase64 = dataUrl; document.getElementById('imgPreviewComprobante').src = dataUrl; document.getElementById('previewComprobante').style.display=''; }
+    else { fotoDepositoBase64 = dataUrl; document.getElementById('imgPreviewDeposito').src = dataUrl; document.getElementById('previewDeposito').style.display=''; }
+    toast('✅ Foto lista','ok');
+  });
+}
+function quitarFoto(cual){
+  if(cual==='comprobante'){ fotoComprobanteBase64 = null; document.getElementById('previewComprobante').style.display='none'; document.getElementById('inpFotoComprobante').value=''; }
+  else { fotoDepositoBase64 = null; document.getElementById('previewDeposito').style.display='none'; document.getElementById('inpFotoDeposito').value=''; }
 }
 
 function elegirTipo(t){
@@ -1129,6 +1185,20 @@ function registrarCobro(){
     }
     ultimoTicket = Object.assign({}, registro, {id: ref.key});
     var cadenaUpdate = db.ref().update(updates);
+    // Si adjuntó foto del comprobante (transferencia/depósito/tarjeta), se guarda ligada a este cobro
+    if(fotoComprobanteBase64){
+      var idFotoCobro = ref.key;
+      cadenaUpdate = cadenaUpdate.then(function(){
+        return db.ref('comprobantesFotos/'+idFotoCobro).set({
+          tipo:'cobro', refZona: miZona, refKey: miKey, refEsFueraDePlanilla: esFueraDePlanilla,
+          foto: fotoComprobanteBase64, ts: ahora.getTime(), vendor: miNombre, folio: facturaSel.folio
+        });
+      }).then(function(){
+        var pathCobro = esFueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+idFotoCobro+'/tieneFoto' : 'cobros/'+miZona+'/'+miKey+'/'+idFotoCobro+'/tieneFoto';
+        return db.ref(pathCobro).set(true);
+      });
+      quitarFoto('comprobante');
+    }
     // Si la otra factura no estaba en la planilla, se registra como un cobro fuera de planilla aparte,
     // pagada con el saldo a favor (sin efectivo nuevo) — para que la oficina la revise en Microsip.
     if(otraFueraDePlanilla && favorAplicadoAOtra>0){
@@ -1466,6 +1536,18 @@ function confirmarDeposito(){
       updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/depositoId'] = refD.key;
     });
     var cadena = db.ref().update(updates);
+    if(fotoDepositoBase64){
+      var idFotoDep = refD.key;
+      cadena = cadena.then(function(){
+        return db.ref('comprobantesFotos/'+idFotoDep).set({
+          tipo:'deposito', refKey: miKey, refZona: miZona,
+          foto: fotoDepositoBase64, ts: Date.now(), vendor: miNombre
+        });
+      }).then(function(){
+        return db.ref('depositos/'+miKey+'/'+idFotoDep+'/tieneFoto').set(true);
+      });
+      quitarFoto('deposito');
+    }
     if(hayFaltante){
       cadena = cadena.then(function(){
         return db.ref('entregasOficina/'+miKey).push({

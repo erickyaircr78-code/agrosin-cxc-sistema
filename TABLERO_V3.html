@@ -463,7 +463,8 @@ function borrarPruebasTablero(){
     db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(),
     db.ref('depositos').remove(), db.ref('entregasOficina').remove(),
     db.ref('carteraSemanal').remove(), db.ref('carteraSemanalMeta').remove(),
-    db.ref('saldosAFavor').remove(), db.ref('saldosAFavorLog').remove()
+    db.ref('saldosAFavor').remove(), db.ref('saldosAFavorLog').remove(),
+    db.ref('comprobantesFotos').remove()
   ]).then(function(){
     cerrarModalBorrar();
     toast('✅ Pruebas borradas','ok'); setTimeout(function(){location.reload();},1200);
@@ -651,7 +652,8 @@ function renderRecibos(){
       c.estado==='pendiente' ? '<span class="rpill pend">Pendiente</span>' :
       c.estado==='en_transito_oficina' ? '<span class="rpill gris">En oficina</span>' : '<span class="rpill gris">'+(c.estado||'—')+'</span>';
     var fueraTag = c.fueraDePlanilla ? ' <span class="rpill atr">FUERA</span>' : '';
-    return '<tr><td style="text-align:left;font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.fecha+'</td><td class="vname">'+c.vendor+'</td><td>'+c.zona+'</td><td>'+c.cliente+fueraTag+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.folio+'</td><td>'+c.tipo+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:var(--grn);text-align:right;">'+fmt(c.monto)+'</td><td>'+pill+'</td></tr>';
+    var fotoBtn = c.tieneFoto ? '<span style="cursor:pointer;font-size:14px;" onclick="verFoto(\''+c.id+'\')" title="Ver comprobante">📷</span>' : '';
+    return '<tr><td style="text-align:left;font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.fecha+'</td><td class="vname">'+c.vendor+'</td><td>'+c.zona+'</td><td>'+c.cliente+fueraTag+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.folio+'</td><td>'+c.tipo+' '+fotoBtn+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:var(--grn);text-align:right;">'+fmt(c.monto)+'</td><td>'+pill+'</td></tr>';
   }).join('');
 }
 
@@ -872,7 +874,8 @@ function renderLog(){
   deps = deps.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,50);
   b.innerHTML = deps.map(function(d){
     var hora = new Date(d.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    return '<div class="lrow"><span class="lv">'+(d.vendor||'—')+'</span><span class="lt">'+(d.banco||'—')+'</span><span class="la">'+fmt(d.montoReal||0)+'</span><span class="lt">'+(d.tipo||'—')+'</span><span class="lts">'+hora+'</span></div>';
+    var fotoBtn = d.tieneFoto ? ' <span style="cursor:pointer;" onclick="verFoto(\''+d.id+'\')" title="Ver ficha de depósito">📷</span>' : '';
+    return '<div class="lrow"><span class="lv">'+(d.vendor||'—')+'</span><span class="lt">'+(d.banco||'—')+'</span><span class="la">'+fmt(d.montoReal||0)+'</span><span class="lt">'+(d.tipo||'—')+fotoBtn+'</span><span class="lts">'+hora+'</span></div>';
   }).join('');
 }
 
@@ -904,7 +907,7 @@ function confirmarNuevaSemana(){
     vendedores: vendedoresData
   };
   db.ref('historialSemanal/'+semKey).set(histEntry).then(function(){
-    return Promise.all([db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(), db.ref('depositos').remove(), db.ref('entregasOficina').remove()]);
+    return Promise.all([db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(), db.ref('depositos').remove(), db.ref('entregasOficina').remove(), db.ref('comprobantesFotos').remove()]);
   }).then(function(){
     toast('✅ Semana guardada en historial','ok'); renderHistorial();
     setTimeout(function(){ location.reload(); }, 1500);
@@ -1085,6 +1088,22 @@ irPanel = function(p){
     renderSaldosHistorial();
   }
 };
+/* ══════════════════ VER FOTO DE COMPROBANTE ══════════════════ */
+function verFoto(id){
+  db.ref('comprobantesFotos/'+id).once('value').then(function(snap){
+    var d = snap.val();
+    if(!d || !d.foto){ toast('No se encontró la foto (puede que ya se haya borrado)','warn'); return; }
+    var overlay = document.createElement('div');
+    overlay.style = 'position:fixed;inset:0;background:rgba(15,23,25,.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;';
+    overlay.innerHTML =
+      '<img src="'+d.foto+'" style="max-width:90%;max-height:75vh;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);">'+
+      '<div style="color:#fff;font-size:12px;font-weight:700;">'+(d.vendor||'')+' · '+new Date(d.ts).toLocaleString('es-MX')+'</div>'+
+      '<button type="button" style="padding:10px 24px;background:#fff;color:#0f1923;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Cerrar</button>';
+    overlay.querySelector('button').onclick = function(){ overlay.remove(); };
+    overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }).catch(function(e){ toast('Error al cargar la foto: '+e.message,'err'); });
+}
 
 refrescarTodo();
 </script>
