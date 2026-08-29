@@ -110,6 +110,8 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .fs-stat{flex:1;background:#fff;border-radius:10px;padding:10px 12px;}
 .fs-stat-lbl{font-size:9px;font-weight:800;color:var(--gris);text-transform:uppercase;margin-bottom:3px;}
 .fs-stat-val{font-size:17px;font-weight:900;}
+.favor-nota{background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:8px 12px;margin-top:10px;font-size:12px;font-weight:800;color:var(--verde);}
+.favor-recibo{background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 12px;margin-top:10px;text-align:center;font-size:12px;font-weight:800;color:var(--verde);}
 .fact-sel .fs-cambiar{font-size:11px;color:var(--gris);text-decoration:underline;margin-top:6px;cursor:pointer;display:inline-block;}
 
 /* ── Estado de cuenta / avance semanal ── */
@@ -727,6 +729,7 @@ function mostrarFormularioCobro(){
   document.getElementById('tarjetaRecibo').style.display = 'none';
   var box = document.getElementById('factSelBox');
   var totalOriginal = facturaSel.total || facturaSel.saldo;
+  var favorPrevioHtml = (facturaSel.favorAplicado>0) ? '<div class="favor-nota">💰 A esta factura ya se le aplicaron '+fmt(facturaSel.favorAplicado)+' de saldo a favor</div>' : '';
   box.innerHTML =
     '<div class="fs-cliente">'+facturaSel.nombre+(esFueraDePlanilla?' <span style="color:var(--ora);font-size:11px">· FUERA DE PLANILLA</span>':'')+'</div>'+
     '<div class="fs-meta">Folio '+facturaSel.folio+'</div>'+
@@ -734,6 +737,7 @@ function mostrarFormularioCobro(){
       '<div class="fs-stat"><div class="fs-stat-lbl">Total</div><div class="fs-stat-val" style="color:var(--texto)">'+fmt(totalOriginal)+'</div></div>'+
       '<div class="fs-stat"><div class="fs-stat-lbl">Saldo</div><div class="fs-stat-val" style="color:var(--ora)">'+fmt(facturaSel.saldo)+'</div></div>'+
     '</div>'+
+    favorPrevioHtml+
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
@@ -1013,6 +1017,7 @@ function recalcular(){
   var subtotal = Math.max(0, saldoAntes - devolucion);
   var box = document.getElementById('calcBox');
   var filas = '<div class="calc-row"><span>Saldo de la factura</span><span>'+fmt(saldoAntes)+'</span></div>';
+  if(facturaSel.favorAplicado>0) filas += '<div class="calc-row" style="color:var(--verde);font-weight:800;"><span>ℹ️ Saldo a favor ya aplicado antes</span><span>'+fmt(facturaSel.favorAplicado)+'</span></div>';
   if(devolucion>0) filas += '<div class="calc-row"><span>− Devolución</span><span>'+fmt(devolucion)+'</span></div>';
   if(devolucion>0) filas += '<div class="calc-row"><span>Subtotal</span><span>'+fmt(subtotal)+'</span></div>';
 
@@ -1134,6 +1139,7 @@ function registrarCobro(){
     favorAplicado: favorAplicado, favorGenerado: favorGeneradoRestante,
     facturasHermanasAplicadas: aplicacionesHermanas.map(function(a){ return {folio:a.folio, monto:a.aplicado}; }),
     favorAplicadoAOtraFactura: favorAplicadoAOtra, otraFacturaFolio: (otraFacturaEncontrada || otraFueraDePlanilla) ? folioOtraFactura : null,
+    favorAplicadoHistorico: facturaSel.favorAplicado || 0,
     otraFacturaFueraDePlanilla: otraFueraDePlanilla,
     saldoAntes: saldoAntes, saldoDespues: saldoDespues,
     ts: ahora.getTime(), fecha: fecha, folioRecibo: folioRecibo,
@@ -1274,6 +1280,9 @@ function mostrarRecibo(r){
   if(r.favorGenerado>0){
     favorHtml += '<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 12px;margin-top:10px;text-align:center;font-size:12px;font-weight:800;color:var(--verde);">💰 Te quedan '+fmt(r.favorGenerado)+' a favor para tu próxima compra</div>';
   }
+  if(r.favorAplicadoHistorico>0){
+    favorHtml += '<div class="favor-recibo">ℹ️ Esta factura ya tenía '+fmt(r.favorAplicadoHistorico)+' de saldo a favor aplicado</div>';
+  }
   document.getElementById('ticketHTML').innerHTML =
     '<div class="ticket-head"><div class="agro">AGROSIN</div><div class="tit">Comprobante de Cobro</div></div>'+
     '<div class="ticket-body">'+
@@ -1294,7 +1303,9 @@ function seguirCobrando(){
 }
 /* ---------- Generar imagen del ticket (canvas) — igual que ya funcionaba en el piloto ---------- */
 function dibujarTicketCanvas(r){
-  var extra = (r.saldoDespues>0.005 || r.favorGenerado>0) ? 20 : 0;
+  var extra = (r.saldoDespues>0.005 || r.favorGenerado>0 || r.favorAplicadoHistorico>0) ? 20 : 0;
+  extra += (r.favorGenerado>0 ? 44 : 0);
+  extra += (r.favorAplicadoHistorico>0 ? 44 : 0);
   var W = 720, H = 760 + extra, esc = 2;
   var cv = document.createElement('canvas');
   cv.width = W*esc; cv.height = H*esc;
@@ -1374,6 +1385,15 @@ function dibujarTicketCanvas(r){
     ctx.fillStyle = '#15803d';
     ctx.font = '800 17px Arial';
     ctx.fillText('💰 Te quedan '+fmt(r.favorGenerado)+' a favor', W/2, yFavor+2);
+  }
+  if(r.favorAplicadoHistorico>0){
+    var yFavorHist = yFinal + (r.favorGenerado>0 ? 78 : 34);
+    ctx.fillStyle = '#f0fdf4';
+    rr(60, yFavorHist-24, W-120, 40, 8); ctx.fill();
+    ctx.strokeStyle = '#86efac'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#15803d';
+    ctx.font = '800 15px Arial';
+    ctx.fillText('ℹ️ Ya tenía '+fmt(r.favorAplicadoHistorico)+' de saldo a favor aplicado', W/2, yFavorHist+2);
   }
 
   ctx.fillStyle = '#f8fafc';
