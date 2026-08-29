@@ -300,7 +300,7 @@ input[type=file]{display:none;}
       <input class="srch" id="fRBusca" placeholder="Buscar cliente o folio…" oninput="renderRecibos()">
       <div class="filtroGrupo">
         <select class="fsel" id="fRZona" onchange="renderRecibos()"><option value="">Todas las zonas</option><option value="CDMX">CDMX</option><option value="MORELOS">Morelos</option><option value="PUEBLA">Puebla</option></select>
-        <select class="fsel" id="fRTipo" onchange="renderRecibos()"><option value="">Todos los tipos</option><option>Efectivo</option><option>Transferencia</option><option>Cheque</option><option>Deposito</option><option>Tarjeta</option></select>
+        <select class="fsel" id="fRTipo" onchange="renderRecibos()"><option value="">Todos los tipos</option><option>Efectivo</option><option>Transferencia</option><option>Cheque</option><option>Deposito</option><option>Tarjeta</option><option>SaldoAFavor</option></select>
       </div>
     </div>
     <div class="tbl-o">
@@ -995,10 +995,10 @@ function exportarGeneral(){
   rows1.push([]);
   rows1.push(['TOTAL GENERAL','', totCarteraGen, totCobradoGen, totCarteraGen>0?parseFloat(((totCobradoGen/totCarteraGen)*100).toFixed(1)):0, totFaltaGen, totRecibosGen, '']);
 
-  var hdr2 = ['Vendedor','Zona','Fecha','Cliente','Folio','Tipo','Monto','Banco','Estado','Fuera de Planilla'];
+  var hdr2 = ['Vendedor','Zona','Fecha','Cliente','Folio','Tipo','Monto','Banco','Estado','Fuera de Planilla','Descuento','Devolución','Sdo. Favor Generado','Sdo. Favor Aplicado','Tiene Foto'];
   var rows2 = todos.slice().sort(function(a,b){ return String(a.vendor).toUpperCase().localeCompare(String(b.vendor).toUpperCase()); })
-    .map(function(r){ return [r.vendor||'—', r.zona||'—', r.fecha||'—', r.cliente||'—', r.folio||'—', r.tipo||'—', p0(r.monto), r.banco||'Efectivo', r.estado||'—', r.fueraDePlanilla?'Sí':'No']; });
-  if(!rows2.length) rows2.push(['Sin recibos','','','','','','','','','']);
+    .map(function(r){ return [r.vendor||'—', r.zona||'—', r.fecha||'—', r.cliente||'—', r.folio||'—', r.tipo||'—', p0(r.monto), r.banco||'Efectivo', r.estado||'—', r.fueraDePlanilla?'Sí':'No', p0(r.descuento), p0(r.devolucion), p0(r.favorGenerado), p0(r.favorAplicado), r.tieneFoto?'Sí':'No']; });
+  if(!rows2.length) rows2.push(['Sin recibos','','','','','','','','','','','','','','']);
 
   var bancos3 = {};
   depositosTodos.forEach(function(d){

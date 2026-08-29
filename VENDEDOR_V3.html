@@ -106,6 +106,10 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .fact-sel .fs-cliente{font-size:15px;font-weight:900;color:var(--texto);}
 .fact-sel .fs-meta{font-size:11px;color:var(--azul);font-weight:700;margin-top:2px;}
 .fact-sel .fs-saldo{font-size:20px;font-weight:900;color:var(--ora);margin-top:6px;}
+.fs-stats{display:flex;gap:10px;margin-top:8px;}
+.fs-stat{flex:1;background:#fff;border-radius:10px;padding:10px 12px;}
+.fs-stat-lbl{font-size:9px;font-weight:800;color:var(--gris);text-transform:uppercase;margin-bottom:3px;}
+.fs-stat-val{font-size:17px;font-weight:900;}
 .fact-sel .fs-cambiar{font-size:11px;color:var(--gris);text-decoration:underline;margin-top:6px;cursor:pointer;display:inline-block;}
 
 /* ── Estado de cuenta / avance semanal ── */
@@ -722,16 +726,14 @@ function mostrarFormularioCobro(){
   document.getElementById('tarjetaForm').style.display = '';
   document.getElementById('tarjetaRecibo').style.display = 'none';
   var box = document.getElementById('factSelBox');
-  var yaAbonadoHtml = '';
-  if(facturaSel.estado === 'abono' && facturaSel.total > facturaSel.saldo){
-    var yaAbonado = facturaSel.total - facturaSel.saldo;
-    yaAbonadoHtml = '<div style="font-size:12px;color:var(--verde);font-weight:800;margin-top:4px;">✓ Ya se abonó '+fmt(yaAbonado)+' de '+fmt(facturaSel.total)+' original</div>';
-  }
+  var totalOriginal = facturaSel.total || facturaSel.saldo;
   box.innerHTML =
     '<div class="fs-cliente">'+facturaSel.nombre+(esFueraDePlanilla?' <span style="color:var(--ora);font-size:11px">· FUERA DE PLANILLA</span>':'')+'</div>'+
     '<div class="fs-meta">Folio '+facturaSel.folio+'</div>'+
-    '<div class="fs-saldo">Saldo restante: '+fmt(facturaSel.saldo)+'</div>'+
-    yaAbonadoHtml+
+    '<div class="fs-stats">'+
+      '<div class="fs-stat"><div class="fs-stat-lbl">Total</div><div class="fs-stat-val" style="color:var(--texto)">'+fmt(totalOriginal)+'</div></div>'+
+      '<div class="fs-stat"><div class="fs-stat-lbl">Saldo</div><div class="fs-stat-val" style="color:var(--ora)">'+fmt(facturaSel.saldo)+'</div></div>'+
+    '</div>'+
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
