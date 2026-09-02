@@ -165,6 +165,16 @@ input[type=file]{display:none}
   </div>
 </div>
 
+<div id="modalCerrarPlanilla" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;max-width:460px;width:100%;padding:24px;font-family:'Montserrat',sans-serif;">
+    <div id="ccpTitulo" style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:10px;"></div>
+    <div id="ccpTexto" style="font-size:13px;color:#334155;line-height:1.6;margin-bottom:14px;"></div>
+    <div id="ccpLista" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;"></div>
+    <button type="button" id="ccpBtnConfirmar" style="width:100%;padding:13px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;margin-bottom:8px;cursor:pointer;">Cerrar planilla</button>
+    <button type="button" onclick="document.getElementById('modalCerrarPlanilla').style.display='none';" style="width:100%;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">Cancelar, todavía no</button>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="brand">FERRE<span>GAMA</span></div>
   <div style="font-size:12px;color:rgba(255,255,255,0.45)">Módulo de Planillas · Entrega de Documentos</div>
@@ -1176,13 +1186,61 @@ function descargarTodas(formato){
 }
 
 // ── CERRAR PLANILLA ───────────────────────────────────────
+var _planillaPendienteCierre = null;
 function cerrarPlanilla(r){
-  if(!confirm('¿Cerrar la planilla Hoja '+r.hoja.folio_hoja+' de '+r.vendor+'?\nPasará al historial. Los cobros no se borran.')) return;
+  var claves = {};
+  Object.values(r.hoja.facturas||{}).forEach(function(f){ if(f.clave) claves[String(f.clave).trim()] = f.nombre; });
+  var clavesArr = Object.keys(claves);
+  if(!clavesArr.length){ mostrarModalCerrar(r, []); return; }
+  Promise.all(clavesArr.map(function(c){
+    return db.ref('saldosAFavor/'+c).once('value').then(function(snap){ return {clave:c, nombre:claves[c], data:snap.val()}; });
+  })).then(function(resultados){
+    var pendientes = resultados.filter(function(x){ return x.data && x.data.monto>0.005; });
+    mostrarModalCerrar(r, pendientes);
+  }).catch(function(e){ console.error(e); mostrarModalCerrar(r, []); }); // si falla la consulta, no bloquea el cierre — solo no muestra la lista
+}
+function mostrarModalCerrar(r, pendientes){
+  var modal = document.getElementById('modalCerrarPlanilla');
+  var titulo = document.getElementById('ccpTitulo');
+  var texto = document.getElementById('ccpTexto');
+  var lista = document.getElementById('ccpLista');
+  var btn = document.getElementById('ccpBtnConfirmar');
+  if(pendientes.length){
+    titulo.textContent = '⚠️ Esta planilla tiene saldos a favor sin aplicar';
+    titulo.style.color = '#c2410c';
+    texto.textContent = 'Estos clientes de '+r.vendor+' todavía tienen saldo a favor pendiente. Si cierras esta planilla, se van a limpiar (Microsip ya debe tener el monto correcto en la siguiente factura de ese cliente).';
+    lista.style.display = '';
+    lista.innerHTML = pendientes.map(function(p){
+      return '<div style="display:flex;justify-content:space-between;padding:5px 0;"><b>'+p.nombre+'</b><span style="color:#c2410c;font-weight:800;">$'+fmt(p.data.monto)+'</span></div>';
+    }).join('');
+    btn.textContent = 'Cerrar de todos modos y limpiar estos saldos';
+    btn.style.background = '#dc2626';
+  } else {
+    titulo.textContent = '¿Cerrar la planilla Hoja '+r.hoja.folio_hoja+' de '+r.vendor+'?';
+    titulo.style.color = '#0f172a';
+    texto.textContent = 'Pasará al historial. Los cobros no se borran.';
+    lista.style.display = 'none';
+    btn.textContent = 'Cerrar planilla';
+    btn.style.background = '#0f172a';
+  }
+  btn.onclick = function(){ confirmarCierrePlanilla(r, pendientes); };
+  modal.style.display = 'flex';
+}
+function confirmarCierrePlanilla(r, pendientes){
+  document.getElementById('modalCerrarPlanilla').style.display = 'none';
   var zonaV=getZona(r.vendor), k=key(r.vendor);
   db.ref('planillas/'+zonaV+'/'+k).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
     var d=snap.val(); if(!d) return;
-    return db.ref('planillas/'+zonaV+'/'+k+'/'+Object.keys(d)[0]+'/estado').set('cerrada');
-  }).then(function(){ toast('✓ Planilla cerrada','ok'); cargarSidebar(); cargarMain(); })
+    var hojaKey = Object.keys(d)[0];
+    var updates = {};
+    updates['planillas/'+zonaV+'/'+k+'/'+hojaKey+'/estado'] = 'cerrada';
+    pendientes.forEach(function(p){ updates['saldosAFavor/'+p.clave+'/monto'] = 0; });
+    return db.ref().update(updates).then(function(){
+      return Promise.all(pendientes.map(function(p){
+        return db.ref('saldosAFavorLog/'+p.clave).push({tipo:'vencido', monto:p.data.monto, folio:null, vendedor:r.vendor, ts:Date.now(), nota:'Se limpió al cerrar la planilla sin aplicarse'});
+      }));
+    });
+  }).then(function(){ toast('✓ Planilla cerrada'+(pendientes.length?' — saldos a favor limpiados':''),'ok'); cargarSidebar(); cargarMain(); })
   .catch(function(e){ console.error(e); toast('Error al cerrar','err'); });
 }
 
