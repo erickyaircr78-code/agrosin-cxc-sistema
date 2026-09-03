@@ -203,6 +203,13 @@ input[type=file]{display:none;}
   <div class="card"><div class="clbl">Entregas de oficina</div><div class="cval cr" id="kpiOficinaPend">—</div><div class="csub">pendientes de confirmar</div></div>
 </div>
 
+<div class="cards" style="margin-top:10px;">
+  <div class="card"><div class="clbl">🏦 Transferencias</div><div class="cval ca" id="kpiTransferencia">—</div><div class="csub">directo al banco</div></div>
+  <div class="card"><div class="clbl">💳 Tarjeta</div><div class="cval" id="kpiTarjeta" style="color:#7c3aed">—</div><div class="csub">directo al banco</div></div>
+  <div class="card"><div class="clbl">📝 Cheque</div><div class="cval" id="kpiCheque" style="color:#0891b2">—</div><div class="csub">por cobrar en banco</div></div>
+  <div class="card"><div class="clbl">🏧 Depósito directo</div><div class="cval" id="kpiDeposito" style="color:#059669">—</div><div class="csub">cliente depositó solo</div></div>
+</div>
+
 <div class="zona-cards" id="zonaGrid">
   <div class="zona-card act" id="zall"><div class="zona-lbl">Todas las zonas</div><div class="zona-val" id="zall-v">—</div><div class="zona-sub" id="zall-s">—</div></div>
   <div class="zona-card" id="zcdmx"><div class="zona-lbl">🏙 CDMX</div><div class="zona-val" id="zcdmx-v">—</div><div class="zona-sub" id="zcdmx-s">—</div><div class="prw"><div class="prb"><div class="prf" id="zcdmx-bar"></div></div></div></div>
@@ -328,8 +335,9 @@ input[type=file]{display:none;}
     <div class="tbl-o">
       <div class="tbl-s">
         <table>
-          <thead><tr><th>Vendedor</th><th>Zona</th><th class="tn">Cobrado efectivo</th><th class="tn">Depositado</th><th class="tn">Entregado oficina</th><th class="tn">Diferencia</th></tr></thead>
+          <thead><tr><th>Vendedor</th><th>Zona</th><th class="tn">Efectivo cobrado</th><th class="tn">Depositado</th><th class="tn">Transferencia</th><th class="tn">Tarjeta</th><th class="tn">Cheque</th><th class="tn">Depósito</th><th class="tn">Entregado oficina</th><th class="tn" style="color:#fde68a;">Total Cobrado</th><th class="tn">Diferencia</th></tr></thead>
           <tbody id="tbodyRecon"></tbody>
+          <tfoot><tr id="reconFooterTotales" style="font-weight:800;background:#f8fafc;border-top:2px solid #0f1923;"></tr></tfoot>
         </table>
       </div>
     </div>
@@ -576,6 +584,14 @@ function renderKpisYZonas(){
   document.getElementById('kpiPendiente').textContent = fmt(pendiente);
   document.getElementById('kpiOficinaPend').textContent = oficinaPend.length;
 
+  var hoyPorTipo = todos.filter(function(c){return esHoy(c.ts);});
+  ['Transferencia','Tarjeta','Cheque','Deposito'].forEach(function(t){
+    var idKpi = 'kpi'+t;
+    var monto = hoyPorTipo.filter(function(c){return c.tipo===t;}).reduce(function(s,c){return s+(c.monto||0);},0);
+    var el = document.getElementById(idKpi);
+    if(el) el.textContent = fmt(monto);
+  });
+
   oficinaPendCache = oficinaPend; // se guarda para poder reusarla al cambiar de pestaña
   actualizarAlertaOficina();
 
@@ -658,7 +674,8 @@ function renderRecibos(){
 }
 
 function renderReconciliacion(){
-  var todos = cobrosTodos.concat(fueraPlanillaTodos).filter(function(c){return c.tipo==='Efectivo';});
+  var todosEfectivo = cobrosTodos.concat(fueraPlanillaTodos).filter(function(c){return c.tipo==='Efectivo';});
+  var todosTodos = cobrosTodos.concat(fueraPlanillaTodos); // sin filtrar tipo — para transferencia/tarjeta/cheque/depósito
   var tbody = document.getElementById('tbodyRecon');
   var zClass = {CDMX:'zc',MORELOS:'zm',PUEBLA:'zp'};
   var q = (document.getElementById('reconBusca').value||'').trim().toUpperCase();
@@ -669,12 +686,17 @@ function renderReconciliacion(){
     ZONAS[z].forEach(function(nombre){
       if(q && nombre.toUpperCase().indexOf(q)<0) return;
       var k = key(nombre);
-      var cobrado = todos.filter(function(c){return c.key===k;}).reduce(function(s,c){return s+(c.monto||0);},0);
-      if(cobrado<=0) return;
+      var cobrado = todosEfectivo.filter(function(c){return c.key===k;}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var transferencia = todosTodos.filter(function(c){return c.key===k&&c.tipo==='Transferencia';}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var tarjeta = todosTodos.filter(function(c){return c.key===k&&c.tipo==='Tarjeta';}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var cheque = todosTodos.filter(function(c){return c.key===k&&c.tipo==='Cheque';}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var deposito = todosTodos.filter(function(c){return c.key===k&&c.tipo==='Deposito';}).reduce(function(s,c){return s+(c.monto||0);},0);
+      var totalCobrado = cobrado+transferencia+tarjeta+cheque+deposito;
+      if(totalCobrado<=0) return;
       var depositado = depositosTodos.filter(function(d){return d.key===k;}).reduce(function(s,d){return s+(d.montoReal||0);},0);
       var entregado = entregasTodos.filter(function(e){return e.key===k&&e.estado==='confirmado';}).reduce(function(s,e){return s+(e.totalCobrado||0);},0);
       var diferencia = Math.max(0, cobrado-depositado-entregado);
-      filas.push({nombre:nombre,zona:z,cobrado:cobrado,depositado:depositado,entregado:entregado,diferencia:diferencia});
+      filas.push({nombre:nombre,zona:z,cobrado:cobrado,depositado:depositado,transferencia:transferencia,tarjeta:tarjeta,cheque:cheque,deposito:deposito,entregado:entregado,totalCobrado:totalCobrado,diferencia:diferencia});
     });
   });
   filas.sort(function(a,b){ return b.diferencia-a.diferencia; });
@@ -690,11 +712,23 @@ function renderReconciliacion(){
     '<div class="bkpi"><div class="lbl">Total entregado oficina</div><div class="val" style="color:var(--acc)">'+fmt(totEntregado)+'</div></div>'+
     '<div class="bkpi"><div class="lbl">Diferencia total</div><div class="val" style="color:'+(totDiferencia>0.5?'var(--red)':'var(--grn)')+'">'+fmt(totDiferencia)+'</div></div>';
 
-  if(!filas.length){ tbody.innerHTML='<tr><td colspan="6" class="remp">Sin cobros en efectivo para este filtro</td></tr>'; return; }
+  var footer = document.getElementById('reconFooterTotales');
+  if(!filas.length){
+    tbody.innerHTML='<tr><td colspan="10" class="remp">Sin cobros para este filtro</td></tr>';
+    footer.innerHTML = '';
+    return;
+  }
   tbody.innerHTML = filas.map(function(f){
     var difTxt = f.diferencia<=0.5 ? '<span class="rpill dep">Al día</span>' : '<span class="tfal fbd">'+fmt(f.diferencia)+'</span>';
-    return '<tr><td class="vname">'+f.nombre+'</td><td><span class="zbadge '+zClass[f.zona]+'">'+f.zona+'</span></td><td class="tn">'+fmt(f.cobrado)+'</td><td class="tn">'+fmt(f.depositado)+'</td><td class="tn">'+fmt(f.entregado)+'</td><td class="tn">'+difTxt+'</td></tr>';
+    return '<tr><td class="vname">'+f.nombre+'</td><td><span class="zbadge '+zClass[f.zona]+'">'+f.zona+'</span></td><td class="tn">'+fmt(f.cobrado)+'</td><td class="tn">'+fmt(f.depositado)+'</td><td class="tn">'+fmt(f.transferencia)+'</td><td class="tn">'+fmt(f.tarjeta)+'</td><td class="tn">'+fmt(f.cheque)+'</td><td class="tn">'+fmt(f.deposito)+'</td><td class="tn">'+fmt(f.entregado)+'</td><td class="tn" style="font-weight:800;">'+fmt(f.totalCobrado)+'</td><td class="tn">'+difTxt+'</td></tr>';
   }).join('');
+
+  var sumTransf = filas.reduce(function(s,f){return s+f.transferencia;},0);
+  var sumTarjeta = filas.reduce(function(s,f){return s+f.tarjeta;},0);
+  var sumCheque = filas.reduce(function(s,f){return s+f.cheque;},0);
+  var sumDeposito = filas.reduce(function(s,f){return s+f.deposito;},0);
+  var sumTotalCobrado = filas.reduce(function(s,f){return s+f.totalCobrado;},0);
+  footer.innerHTML = '<td>TOTALES</td><td></td><td class="tn">'+fmt(totCobrado)+'</td><td class="tn">'+fmt(totDepositado)+'</td><td class="tn">'+fmt(sumTransf)+'</td><td class="tn">'+fmt(sumTarjeta)+'</td><td class="tn">'+fmt(sumCheque)+'</td><td class="tn">'+fmt(sumDeposito)+'</td><td class="tn">'+fmt(totEntregado)+'</td><td class="tn">'+fmt(sumTotalCobrado)+'</td><td class="tn">'+fmt(totDiferencia)+'</td>';
 }
 
 function renderOficina(){
