@@ -198,6 +198,10 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">Cobrado en total (bruto)</div><div class="avance-val" id="avanceCobradoBruto" style="font-size:16px;">—</div></div>
         <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">Ya depositado</div><div class="avance-val" id="avanceDepositado" style="font-size:16px;">—</div></div>
       </div>
+      <div class="avance-grid" style="margin-top:-4px;">
+        <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">🏦 Pagos directos al banco</div><div class="avance-val" id="avancePagosDirectos" style="font-size:16px;color:#93c5fd;">—</div></div>
+        <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">📦 Pendiente de entregar</div><div class="avance-val" id="avancePendienteEntregar" style="font-size:16px;color:#fb923c;">—</div></div>
+      </div>
       <div class="avance-progreso-lbl">Progreso</div>
       <div class="avance-bar-bg"><div class="avance-bar-fill" id="avanceBar" style="width:0%;"></div></div>
       <div class="avance-sub" id="avanceSub"></div>
@@ -581,6 +585,8 @@ function renderAvance(){
 
   var cobradoBruto = misCobrosSemana.reduce(function(s,c){ return s+(c.monto||0); },0);
   var depositadoTotal = misDepositosSemana.reduce(function(s,d){ return s+(d.montoReal||0); },0);
+  var pagosDirectos = misCobrosSemana.filter(function(c){ return ['Transferencia','Tarjeta','Cheque','Deposito'].indexOf(c.tipo)>=0; }).reduce(function(s,c){ return s+(c.monto||0); },0);
+  var pendienteEntregar = misEntregasSemana.filter(function(e){ return e.estado==='pendiente'; }).reduce(function(s,e){ return s+(e.totalCobrado||0); },0);
 
   document.getElementById('avanceCartera').textContent = fmt(total);
   document.getElementById('avanceCobrado').textContent = fmt(cobrado);
@@ -588,6 +594,10 @@ function renderAvance(){
   document.getElementById('avancePct').textContent = pct.toFixed(1)+'%';
   document.getElementById('avanceCobradoBruto').textContent = fmt(cobradoBruto);
   document.getElementById('avanceDepositado').textContent = fmt(depositadoTotal);
+  document.getElementById('avancePagosDirectos').textContent = fmt(pagosDirectos);
+  var elPendEntrega = document.getElementById('avancePendienteEntregar');
+  elPendEntrega.textContent = fmt(pendienteEntregar);
+  elPendEntrega.style.color = pendienteEntregar > 0.005 ? '#fb923c' : '#4ade80';
   document.getElementById('avanceBar').style.width = pct+'%';
   document.getElementById('avanceSub').textContent = pct.toFixed(1)+'% de tu meta · faltan '+fmt(falta);
 }
