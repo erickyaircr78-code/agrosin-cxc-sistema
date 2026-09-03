@@ -450,10 +450,23 @@ firebase.initializeApp({
 });
 var db = firebase.database();
 firebase.auth().signInAnonymously().catch(function(e){ console.error('Error de acceso:', e); });
+var _yaInicializado = false; // para que no se repita si el estado de conexión cambia varias veces
 firebase.auth().onAuthStateChanged(function(u){
   var cdot = document.getElementById('cdot'), clbl = document.getElementById('clbl');
   if(u){ cdot.classList.remove('off'); clbl.textContent = 'En línea'; }
   else { cdot.classList.add('off'); clbl.textContent = 'Sin conexión'; }
+  // Solo hasta que la conexión esté CONFIRMADA cargamos al vendedor guardado —
+  // así nunca se intenta leer Firebase antes de tener permiso, y nunca se queda pegado sin datos.
+  if(u && !_yaInicializado){
+    _yaInicializado = true;
+    var z = localStorage.getItem('v3_zona'), n = localStorage.getItem('v3_nombre');
+    if(z && n){
+      document.getElementById('selZona').value = z;
+      cargarVendedoresDeZona();
+      document.getElementById('selVendedor').value = n;
+      fijarVendedor();
+    }
+  }
 });
 
 /* ============================================================
@@ -626,15 +639,6 @@ function cambiarVendedor(){
   document.getElementById('pApp').classList.remove('act');
   document.getElementById('pSelectVendedor').classList.add('act');
 }
-(function initVendedor(){
-  var z = localStorage.getItem('v3_zona'), n = localStorage.getItem('v3_nombre');
-  if(z && n){
-    document.getElementById('selZona').value = z;
-    cargarVendedoresDeZona();
-    document.getElementById('selVendedor').value = n;
-    fijarVendedor();
-  }
-})();
 
 function irTab(n){
   document.getElementById('tabBtn1').classList.toggle('act', n===1);
