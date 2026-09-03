@@ -533,7 +533,7 @@ function cargarVendedoresDeZona(){
 }
 
 /* ── Estado de cuenta / avance semanal — misma definición de "dinero seguro" que el Tablero ── */
-var misCobrosSemana = [], misDepositosSemana = [], misEntregasSemana = [], miCartera = null;
+var misCobrosRegulares = [], misCobrosFuera = [], misDepositosSemana = [], misEntregasSemana = [], miCartera = null;
 function escucharAvance(){
   var inicioSem = inicioSemana();
   db.ref('carteraSemanal/'+zkey(miZona, miNombre)).on('value', function(snap){
@@ -542,12 +542,12 @@ function escucharAvance(){
   });
   db.ref('cobros/'+miZona+'/'+miKey).on('value', function(snap){
     var arr = []; snap.forEach(function(c){ arr.push(c.val()); });
-    misCobrosSemana = arr.filter(function(c){ return c.ts >= inicioSem; });
+    misCobrosRegulares = arr.filter(function(c){ return c.ts >= inicioSem; });
     renderAvance();
   });
   db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey).on('value', function(snap){
     var arr = []; snap.forEach(function(c){ arr.push(c.val()); });
-    misCobrosSemana = misCobrosSemana.concat(arr.filter(function(c){ return c.ts >= inicioSem; }));
+    misCobrosFuera = arr.filter(function(c){ return c.ts >= inicioSem; });
     renderAvance();
   });
   db.ref('depositos/'+miKey).on('value', function(snap){
@@ -566,6 +566,8 @@ function renderAvance(){
   if(!miCartera || !miCartera.total){ card.style.display = 'none'; return; }
   card.style.display = '';
   document.getElementById('avanceNombre').textContent = miNombre;
+
+  var misCobrosSemana = misCobrosRegulares.concat(misCobrosFuera); // se combina fresco cada vez, nunca se pisa
 
   // "Dinero seguro": no-efectivo (se confirma solo) + efectivo YA depositado (monto real) + efectivo YA entregado y confirmado
   var noEfectivo = misCobrosSemana.filter(function(c){ return c.tipo!=='Efectivo'; }).reduce(function(s,c){ return s+(c.monto||0); },0);
