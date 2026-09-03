@@ -1218,7 +1218,12 @@ function registrarCobro(){
         });
       }).then(function(){
         var pathCobro = esFueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+idFotoCobro+'/tieneFoto' : 'cobros/'+miZona+'/'+miKey+'/'+idFotoCobro+'/tieneFoto';
-        return db.ref(pathCobro).set(true);
+        var updatesFoto = {}; updatesFoto[pathCobro] = true;
+        // También se marca en la factura de la planilla, para que el Excel de Lupe la vea (si no es fuera de planilla)
+        if(!esFueraDePlanilla && planillaActiva){
+          updatesFoto['planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+facturaSel.folio+'/tieneFoto'] = true;
+        }
+        return db.ref().update(updatesFoto);
       });
       quitarFoto('comprobante');
     }
@@ -1461,16 +1466,26 @@ function compartirWA(){
 }
 
 /* ── TAB 2: pendientes de depósito/entrega (solo Efectivo) ── */
+var pendientesCobros = [], pendientesFuera = [];
 function escucharPendientes(){
   db.ref('cobros/'+miZona+'/'+miKey).orderByChild('estado').equalTo('pendiente').on('value', function(snap){
-    pendientes = [];
-    snap.forEach(function(c){ pendientes.push(Object.assign({id:c.key}, c.val())); });
-    pendientes.sort(function(a,b){ return a.ts-b.ts; });
-    seleccion = {};
-    pendientes.forEach(function(p){ seleccion[p.id]=true; });
-    actualizarBadge();
-    if(document.getElementById('tab2').style.display !== 'none') renderPendientes();
+    pendientesCobros = [];
+    snap.forEach(function(c){ pendientesCobros.push(Object.assign({id:c.key}, c.val())); });
+    combinarPendientes();
   });
+  db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey).orderByChild('estado').equalTo('pendiente').on('value', function(snap){
+    pendientesFuera = [];
+    snap.forEach(function(c){ pendientesFuera.push(Object.assign({id:c.key}, c.val())); });
+    combinarPendientes();
+  });
+}
+function combinarPendientes(){
+  pendientes = pendientesCobros.concat(pendientesFuera);
+  pendientes.sort(function(a,b){ return a.ts-b.ts; });
+  seleccion = {};
+  pendientes.forEach(function(p){ seleccion[p.id]=true; });
+  actualizarBadge();
+  if(document.getElementById('tab2').style.display !== 'none') renderPendientes();
 }
 function escucharEntregasPendientes(){
   db.ref('entregasOficina/'+miKey).orderByChild('estado').equalTo('pendiente').on('value', function(snap){
@@ -1568,9 +1583,10 @@ function confirmarDeposito(){
   db.ref('depositos/'+miKey).push(deposito).then(function(refD){
     var updates = {};
     sel.forEach(function(p){
-      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/estado'] = 'confirmado';
-      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/rutaFinal'] = 'banco';
-      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/depositoId'] = refD.key;
+      var base = p.fueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+p.id : 'cobros/'+miZona+'/'+miKey+'/'+p.id;
+      updates[base+'/estado'] = 'confirmado';
+      updates[base+'/rutaFinal'] = 'banco';
+      updates[base+'/depositoId'] = refD.key;
     });
     var cadena = db.ref().update(updates);
     if(fotoDepositoBase64){
@@ -1612,8 +1628,9 @@ function registrarPendienteOficina(){
   db.ref('entregasOficina/'+miKey).push(entrega).then(function(refE){
     var updates = {};
     sel.forEach(function(p){
-      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/estado'] = 'en_transito_oficina';
-      updates['cobros/'+miZona+'/'+miKey+'/'+p.id+'/entregaId'] = refE.key;
+      var base = p.fueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+p.id : 'cobros/'+miZona+'/'+miKey+'/'+p.id;
+      updates[base+'/estado'] = 'en_transito_oficina';
+      updates[base+'/entregaId'] = refE.key;
     });
     return db.ref().update(updates);
   }).then(function(){
