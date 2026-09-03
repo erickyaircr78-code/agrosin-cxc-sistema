@@ -728,7 +728,7 @@ function extraerFacturas(texto){
   if(dm) fecha = dm[1];
 
   // Patrón global — funciona con texto pdfjs en una sola línea
-  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8}|ARM\d{5,8}|\d{9})\s+(\d{3,5})\s+([A-ZA-Za-z0-9\u00C0-\u00FF\s\(\)\.,\/]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
+  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8}|ARM\d{5,8}|\d{9})\s+(\d{1,8})\s+([\s\S]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
   var facturas = [], vistos = {}, m;
 
   while((m = PFACT.exec(texto)) !== null){
@@ -755,7 +755,21 @@ function extraerFacturas(texto){
   var totalFoliosDetectados = Object.keys(todosFolios).length;
   var faltantes = totalFoliosDetectados - facturas.length;
 
-  return {vendedor:vendedor, folioHoja:folio, fecha:fecha, facturas:facturas, foliosDetectados:totalFoliosDetectados, posiblesFaltantes: faltantes>0?faltantes:0};
+  // Candado de seguridad más fuerte: cada PDF de Microsip trae su propio total al final ("Totales: $X $Y").
+  // Se compara la suma de lo que SÍ se leyó contra ese total impreso — si no cuadra, se avisa antes de activar.
+  var sumaTotalLeido = facturas.reduce(function(s,f){ return s+f.total; },0);
+  var sumaSaldoLeido = facturas.reduce(function(s,f){ return s+f.saldo; },0);
+  var totalImpreso = null, saldoImpreso = null;
+  var mTotales = texto.match(/([\d,]+\.\d{2})\s+([\d,]+\.\d)\s*(\d)?\s*\n?\s*Totales/i);
+  if(mTotales){
+    totalImpreso = parseFloat(mTotales[1].replace(/,/g,''));
+    saldoImpreso = parseFloat((mTotales[2]+(mTotales[3]||'')).replace(/,/g,''));
+  }
+  var cuadraTotal = (totalImpreso===null) || Math.abs(sumaTotalLeido-totalImpreso) < 1;
+  var cuadraSaldo = (saldoImpreso===null) || Math.abs(sumaSaldoLeido-saldoImpreso) < 1;
+
+  return {vendedor:vendedor, folioHoja:folio, fecha:fecha, facturas:facturas, foliosDetectados:totalFoliosDetectados, posiblesFaltantes: faltantes>0?faltantes:0,
+    sumaTotalLeido:sumaTotalLeido, sumaSaldoLeido:sumaSaldoLeido, totalImpreso:totalImpreso, saldoImpreso:saldoImpreso, cuadraTotal:cuadraTotal, cuadraSaldo:cuadraSaldo};
 }
 
 // ── SELECTOR MANUAL ───────────────────────────────────────
@@ -858,6 +872,17 @@ function vistaRevision(data){
     warn.style.cssText = 'background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#92400E';
     warn.innerHTML = '⚠️ <strong>Revisa antes de activar:</strong> en el PDF se detectaron señales de '+data.posiblesFaltantes+' factura(s) más de las que se lograron leer completas ('+data.facturas.length+' leídas). Puede que el PDF tenga un formato distinto en algún renglón. Usa "➕ Agregar factura a mano" abajo si falta alguna.';
     main.appendChild(warn);
+  }
+
+  // Candado de seguridad: comparar contra el total impreso en el propio PDF (el más confiable de los 2 avisos)
+  if((data.totalImpreso!==null && !data.cuadraTotal) || (data.saldoImpreso!==null && !data.cuadraSaldo)){
+    var warn2 = document.createElement('div');
+    warn2.style.cssText = 'background:#FEE2E2;border:1.5px solid #DC2626;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#991B1B;font-weight:700;';
+    warn2.innerHTML = '🚫 <strong>NO CUADRA con el total del PDF — no actives todavía:</strong><br>'+
+      (data.totalImpreso!==null ? 'Total: se leyó $'+data.sumaTotalLeido.toFixed(2)+', el PDF dice $'+data.totalImpreso.toFixed(2)+'<br>' : '')+
+      (data.saldoImpreso!==null ? 'Saldo: se leyó $'+data.sumaSaldoLeido.toFixed(2)+', el PDF dice $'+data.saldoImpreso.toFixed(2) : '')+
+      '<br>Seguramente falta alguna factura por leer. Avísale a soporte antes de activar esta planilla.';
+    main.appendChild(warn2);
   }
 
   var banner = document.createElement('div');
