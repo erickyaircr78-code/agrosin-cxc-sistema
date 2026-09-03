@@ -728,7 +728,7 @@ function extraerFacturas(texto){
   if(dm) fecha = dm[1];
 
   // Patrón global — funciona con texto pdfjs en una sola línea
-  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8}|ARM\d{5,8})\s+(\d{4,5})\s+([A-ZA-Za-z0-9\u00C0-\u00FF\s\(\)\.]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
+  var PFACT = /(AG[A-Z]?\d{5,8}|FVB\d{5,8}|AGR\d{5,8}|ARM\d{5,8}|\d{9})\s+(\d{3,5})\s+([A-ZA-Za-z0-9\u00C0-\u00FF\s\(\)\.,\/]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
   var facturas = [], vistos = {}, m;
 
   while((m = PFACT.exec(texto)) !== null){
@@ -790,7 +790,7 @@ function vistaSelVendedor(data){
 
 // ── CELDA EDITABLE (revisión antes de activar) ───────────
 // Mismas reglas que se usan al activar, para avisar de inmediato mientras se escribe
-var RE_FOLIO_UI = /^[A-Za-z]{1,4}\d{4,8}$/;
+var RE_FOLIO_UI = /^([A-Za-z]{1,4}\d{4,8}|\d{9})$/;
 var RE_FECHA_UI = /^\d{2}\/\d{2}\/\d{4}$/;
 
 function campoEditable(f, campo, tipo, i, data){
@@ -956,7 +956,7 @@ function activar(){
 
   var data = G.pdfData;
   // Validar antes de guardar: formato correcto, sin vacíos, sin folios repetidos
-  var RE_FOLIO = /^[A-Za-z]{1,4}\d{4,8}$/;           // ej: AG0044941, AGR12345, FVB123456
+  var RE_FOLIO = /^([A-Za-z]{1,4}\d{4,8}|\d{9})$/;           // ej: AG0044941, AGR12345, FVB123456, o 000000150 (documentos internos)
   var RE_FECHA = /^\d{2}\/\d{2}\/\d{4}$/;              // ej: 16/06/2026
   var vistos = {};
   for(var i=0;i<data.facturas.length;i++){
