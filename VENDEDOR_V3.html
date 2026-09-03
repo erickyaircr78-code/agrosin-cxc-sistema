@@ -44,6 +44,10 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .btn-morado{background:var(--morado);box-shadow:0 4px 16px rgba(124,58,237,.35);}
 .tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
 .tipo-opt{padding:14px 6px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;text-align:center;font-size:13px;font-weight:800;color:var(--gris);cursor:pointer;user-select:none;}
+.dias-pago-grid{display:flex;gap:5px;}
+.dia-pago{flex:1;text-align:center;padding:10px 2px;border-radius:10px;border:2px solid var(--borde);font-weight:800;font-size:12px;color:var(--gris);background:#f8fafc;cursor:pointer;user-select:none;}
+.dia-pago.act{background:var(--azul);border-color:var(--azul);color:#fff;}
+.dia-pago.futuro{opacity:.35;cursor:not-allowed;}
 .tipo-opt.act{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 3px 10px rgba(29,78,216,.3);}
 .tabs{display:flex;gap:8px;margin-bottom:14px;}
 .tab{flex:1;text-align:center;padding:13px 6px;border-radius:10px;font-size:13px;font-weight:800;background:#e2e8f0;color:var(--gris);border:none;cursor:pointer;}
@@ -260,6 +264,12 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
       <!-- Paso B: factura seleccionada + formulario de cobro -->
       <div class="tarjeta" id="tarjetaForm" style="display:none;">
         <div class="fact-sel" id="factSelBox"></div>
+
+        <div class="campo">
+          <label style="display:block;font-size:12px;font-weight:800;color:var(--texto);margin-bottom:8px;">¿Cuándo pagó?</label>
+          <div class="dias-pago-grid" id="diasPagoGrid"></div>
+          <div style="font-size:10px;color:var(--gris);margin-top:7px;line-height:1.4;">Se marca "hoy" solo. Si te mandó la ficha días después, toca el día real en que pagó.</div>
+        </div>
 
         <div class="tarjeta-titulo">💳 ¿Cómo pagó?</div>
         <div class="tipo-grid" id="tipoGrid">
@@ -744,6 +754,27 @@ function continuarFueraPlanilla(){
   document.getElementById('tarjetaFueraPlanilla').style.display = 'none';
   mostrarFormularioCobro();
 }
+/* ── ¿Cuándo pagó? — por si el cliente manda la ficha días después. Arranca siempre en "hoy". ── */
+var diaPagoOffset = 0; // 0 = hoy, 1 = ayer, 2 = antier... (días atrás dentro de la misma semana)
+var DIAS_PAGO_ABREV = ['Lun','Mar','Mié','Jue','Vie','Sáb'];
+function renderDiasPago(){
+  var hoy = new Date();
+  var diaSemana = hoy.getDay(); // 0=domingo,1=lunes,...,6=sábado
+  var indexHoy = diaSemana===0 ? 6 : diaSemana-1; // convertir a 0=lunes,...,6=domingo
+  var cont = document.getElementById('diasPagoGrid');
+  if(!cont) return;
+  cont.innerHTML = DIAS_PAGO_ABREV.map(function(abrev, idx){
+    var esFuturo = idx > indexHoy;
+    var offsetDeEsteBoton = indexHoy - idx;
+    var esActivo = !esFuturo && diaPagoOffset === offsetDeEsteBoton;
+    return '<div class="dia-pago'+(esActivo?' act':'')+(esFuturo?' futuro':'')+'"'+(esFuturo?'':' onclick="seleccionarDiaPago('+offsetDeEsteBoton+')"')+'>'+abrev+'</div>';
+  }).join('');
+}
+function seleccionarDiaPago(offset){
+  diaPagoOffset = offset;
+  renderDiasPago();
+}
+
 function mostrarFormularioCobro(){
   document.getElementById('tarjetaBuscar').style.display = 'none';
   document.getElementById('tarjetaForm').style.display = '';
@@ -760,6 +791,8 @@ function mostrarFormularioCobro(){
     '</div>'+
     favorPrevioHtml+
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
+  diaPagoOffset = 0; // siempre arranca en "hoy" al elegir una factura nueva
+  renderDiasPago();
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
   pctAutorizadoCliente = 0;
@@ -1114,6 +1147,7 @@ function registrarCobro(){
 
   var banco = tipoActual==='Efectivo' ? null : document.getElementById('selBanco').value;
   var ahora = new Date();
+  if(diaPagoOffset > 0) ahora.setDate(ahora.getDate() - diaPagoOffset); // se corrige la fecha si el cliente pagó días antes
   var fecha = ahora.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   var folioRecibo = 'R'+ahora.getTime().toString().slice(-8);
   var claveCliente = facturaSel.clave ? String(facturaSel.clave).trim() : null;
