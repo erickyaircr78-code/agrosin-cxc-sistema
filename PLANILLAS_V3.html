@@ -359,10 +359,13 @@ function cargarSidebar(){
 }
 
 // ── CARGAR MAIN (en vivo — se actualiza solo cuando cambia cualquier planilla) ──
-var _mainListenersActivos = false;
+var _listenersMainActivos = []; // guarda {ref, cb} para poder apagarlos al cambiar de usuario/zona
 function cargarMain(){
-  if(_mainListenersActivos) return; // ya está escuchando en vivo, no hace falta repetir
-  _mainListenersActivos = true;
+  // Apagar cualquier escuchador de la zona/usuario anterior, para que sí se pueda cambiar de usuario
+  // o volver a esta pantalla (botón "Ver planillas activas") sin quedarse pegado a la zona vieja.
+  _listenersMainActivos.forEach(function(o){ o.ref.off('value', o.cb); });
+  _listenersMainActivos = [];
+
   cargarFueraDePlanilla();
   el('main').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Cargando planillas…</div></div>';
   var vends=ZONAS[G.zona]||[];
@@ -370,13 +373,16 @@ function cargarMain(){
   var yaReportaron = {};
   var completo = false;
   vends.forEach(function(v){
-    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).on('value', function(s){
+    var refv = db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1);
+    var cb = function(s){
       var d=s.val();
       resultsMap[v] = { vendor:v, hoja:d?Object.values(d)[0]:null, hojaKey:d?Object.keys(d)[0]:null };
       yaReportaron[v] = true;
       if(!completo && Object.keys(yaReportaron).length===vends.length) completo = true;
       if(completo) renderMain(vends.map(function(vv){ return resultsMap[vv]; }));
-    }, function(err){ console.error(err); });
+    };
+    refv.on('value', cb, function(err){ console.error(err); });
+    _listenersMainActivos.push({ref: refv, cb: cb});
   });
 }
 
@@ -1261,16 +1267,18 @@ function toast(msg,tipo){
   var t=el('toast'); t.textContent=msg; t.className='toast show '+(tipo||'');
   clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('show'); },3200);
 }// ── COBROS FUERA DE PLANILLA — para que Lupe/equipo los vea y los capture en Microsip ──
-var _fpListenersActivos = false;
+var _fpListenerActual = null; // {ref, cb} — se apaga cada vez que se cambia de zona
 function cargarFueraDePlanilla(){
-  if(_fpListenersActivos) return;
-  _fpListenersActivos = true;
-  db.ref('cobrosFueraPlanilla/'+G.zona).on('value', function(snap){
+  if(_fpListenerActual) _fpListenerActual.ref.off('value', _fpListenerActual.cb);
+  var refFp = db.ref('cobrosFueraPlanilla/'+G.zona);
+  var cbFp = function(snap){
     var lista = [];
     snap.forEach(function(vc){ vc.forEach(function(c){ lista.push(Object.assign({id:c.key}, c.val())); }); });
     lista.sort(function(a,b){ return b.ts-a.ts; });
     renderFueraDePlanilla(lista);
-  });
+  };
+  refFp.on('value', cbFp);
+  _fpListenerActual = {ref: refFp, cb: cbFp};
 }
 function renderFueraDePlanilla(lista){
   var box = document.getElementById('avisoFueraPlanilla');
