@@ -200,6 +200,9 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
       </div>
       <div class="avance-grid" style="margin-top:-4px;">
         <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">🏦 Pagos directos al banco</div><div class="avance-val" id="avancePagosDirectos" style="font-size:16px;color:#93c5fd;">—</div></div>
+        <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">✅ Ya entregado a oficina</div><div class="avance-val" id="avanceEntregadoOficina" style="font-size:16px;">—</div></div>
+      </div>
+      <div class="avance-grid" style="margin-top:-4px;">
         <div class="avance-box" style="background:rgba(255,255,255,.07);"><div class="avance-lbl">📦 Pendiente de entregar</div><div class="avance-val" id="avancePendienteEntregar" style="font-size:16px;color:#fb923c;">—</div></div>
       </div>
       <div class="avance-progreso-lbl">Progreso</div>
@@ -587,6 +590,7 @@ function renderAvance(){
   var depositadoTotal = misDepositosSemana.reduce(function(s,d){ return s+(d.montoReal||0); },0);
   var pagosDirectos = misCobrosSemana.filter(function(c){ return ['Transferencia','Tarjeta','Cheque','Deposito'].indexOf(c.tipo)>=0; }).reduce(function(s,c){ return s+(c.monto||0); },0);
   var pendienteEntregar = misEntregasSemana.filter(function(e){ return e.estado==='pendiente'; }).reduce(function(s,e){ return s+(e.totalCobrado||0); },0);
+  var entregadoOficina = misEntregasSemana.filter(function(e){ return e.estado==='confirmado'; }).reduce(function(s,e){ return s+(e.totalCobrado||0); },0);
 
   document.getElementById('avanceCartera').textContent = fmt(total);
   document.getElementById('avanceCobrado').textContent = fmt(cobrado);
@@ -595,6 +599,7 @@ function renderAvance(){
   document.getElementById('avanceCobradoBruto').textContent = fmt(cobradoBruto);
   document.getElementById('avanceDepositado').textContent = fmt(depositadoTotal);
   document.getElementById('avancePagosDirectos').textContent = fmt(pagosDirectos);
+  document.getElementById('avanceEntregadoOficina').textContent = fmt(entregadoOficina);
   var elPendEntrega = document.getElementById('avancePendienteEntregar');
   elPendEntrega.textContent = fmt(pendienteEntregar);
   elPendEntrega.style.color = pendienteEntregar > 0.005 ? '#fb923c' : '#4ade80';
