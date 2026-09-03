@@ -262,7 +262,7 @@ function validarBorrar(){
   btn.style.background = ok ? '#dc2626' : '#94a3b8';
 }
 function borrarTodasLasPruebas(){
-  db.ref('planillas').remove().then(function(){
+  Promise.all([db.ref('planillas').remove(), db.ref('cobrosFueraPlanilla').remove()]).then(function(){
     cerrarModalBorrar();
     toast('✅ Todas las pruebas fueron borradas','ok');
     setTimeout(function(){ location.reload(); }, 1200);
@@ -1273,12 +1273,22 @@ function cargarFueraDePlanilla(){
   var refFp = db.ref('cobrosFueraPlanilla/'+G.zona);
   var cbFp = function(snap){
     var lista = [];
-    snap.forEach(function(vc){ vc.forEach(function(c){ lista.push(Object.assign({id:c.key}, c.val())); }); });
+    snap.forEach(function(vc){
+      vc.forEach(function(c){
+        var val = c.val();
+        if(!val.capturadoEnMicrosip) lista.push(Object.assign({id:c.key, vendedorKey:vc.key}, val));
+      });
+    });
     lista.sort(function(a,b){ return b.ts-a.ts; });
     renderFueraDePlanilla(lista);
   };
   refFp.on('value', cbFp);
   _fpListenerActual = {ref: refFp, cb: cbFp};
+}
+function marcarCapturado(vendedorKey, id){
+  db.ref('cobrosFueraPlanilla/'+G.zona+'/'+vendedorKey+'/'+id+'/capturadoEnMicrosip').set(true)
+    .then(function(){ toast('✓ Marcado como capturado','ok'); })
+    .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 function renderFueraDePlanilla(lista){
   var box = document.getElementById('avisoFueraPlanilla');
@@ -1287,9 +1297,9 @@ function renderFueraDePlanilla(lista){
     '<div class="fp-banner">'+
       '<div class="fp-tit">⚠️ Cobros fuera de planilla ('+lista.length+') — revisar y capturar en Microsip</div>'+
       '<div class="fp-sub">Estos pagos no venían en ninguna planilla activada, un cliente adelantó el pago.</div>'+
-      '<table class="fp-table"><thead><tr><th>Fecha</th><th>Vendedor</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>'+
+      '<table class="fp-table"><thead><tr><th>Fecha</th><th>Vendedor</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Monto</th><th>Acción</th></tr></thead><tbody>'+
       lista.slice(0,30).map(function(c){
-        return '<tr><td>'+c.fecha+'</td><td>'+c.vendor+'</td><td>'+c.cliente+'</td><td>'+c.folio+'</td><td>'+c.tipo+'</td><td style="font-weight:800;color:#15803d;">$'+(+c.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td></tr>';
+        return '<tr><td>'+c.fecha+'</td><td>'+c.vendor+'</td><td>'+c.cliente+'</td><td>'+c.folio+'</td><td>'+c.tipo+'</td><td style="font-weight:800;color:#15803d;">$'+(+c.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td><td><button type="button" onclick="marcarCapturado(\''+c.vendedorKey+'\',\''+c.id+'\')" style="background:#15803d;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;">✓ Ya lo capturé</button></td></tr>';
       }).join('')+
       '</tbody></table>'+
     '</div>';
