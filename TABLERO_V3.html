@@ -203,7 +203,7 @@ input[type=file]{display:none;}
   <div class="card"><div class="clbl">Entregas de oficina</div><div class="cval cr" id="kpiOficinaPend">—</div><div class="csub">pendientes de confirmar</div></div>
 </div>
 
-<div class="cards" style="margin-top:10px;">
+<div class="cards" id="cardsTipoPago" style="margin-top:10px;display:none;">
   <div class="card"><div class="clbl">🏦 Transferencias</div><div class="cval ca" id="kpiTransferencia">—</div><div class="csub">directo al banco</div></div>
   <div class="card"><div class="clbl">💳 Tarjeta</div><div class="cval" id="kpiTarjeta" style="color:#7c3aed">—</div><div class="csub">directo al banco</div></div>
   <div class="card"><div class="clbl">📝 Cheque</div><div class="cval" id="kpiCheque" style="color:#0891b2">—</div><div class="csub">por cobrar en banco</div></div>
@@ -516,6 +516,8 @@ function irPanel(p){
   panelActual = p;
   document.querySelectorAll('.tabAdminBtn').forEach(function(t){ t.classList.toggle('act', t.getAttribute('data-p')===p); });
   document.querySelectorAll('.panelAdmin').forEach(function(el){ el.classList.toggle('act', el.id==='panel-'+p); });
+  var cardsTipo = document.getElementById('cardsTipoPago');
+  if(cardsTipo) cardsTipo.style.display = (p==='seg') ? 'none' : '';
   actualizarAlertaOficina();
 }
 var zonaActiva = 'all';
