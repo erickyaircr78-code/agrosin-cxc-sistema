@@ -313,7 +313,7 @@ input[type=file]{display:none;}
     <div class="tbl-o">
       <div class="tbl-s">
         <table>
-          <thead><tr><th>Fecha</th><th>Vendedor</th><th>Zona</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th class="tn">Monto</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Vendedor</th><th>Zona</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Banco</th><th class="tn">Monto</th><th>Estado</th><th style="text-align:center;">WhatsApp</th></tr></thead>
           <tbody id="tbodyRecibos"></tbody>
         </table>
       </div>
@@ -664,14 +664,15 @@ function renderRecibos(){
     return true;
   }).slice(0,200);
   var tbody = document.getElementById('tbodyRecibos');
-  if(!filtrados.length){ tbody.innerHTML='<tr><td colspan="8" class="remp">Sin recibos aún</td></tr>'; return; }
+  if(!filtrados.length){ tbody.innerHTML='<tr><td colspan="10" class="remp">Sin recibos aún</td></tr>'; return; }
   tbody.innerHTML = filtrados.map(function(c){
     var pill = c.estado==='confirmado' ? '<span class="rpill dep">Confirmado</span>' :
       c.estado==='pendiente' ? '<span class="rpill pend">Pendiente</span>' :
       c.estado==='en_transito_oficina' ? '<span class="rpill gris">En oficina</span>' : '<span class="rpill gris">'+(c.estado||'—')+'</span>';
     var fueraTag = c.fueraDePlanilla ? ' <span class="rpill atr">FUERA</span>' : '';
     var fotoBtn = c.tieneFoto ? '<span style="cursor:pointer;font-size:14px;" onclick="verFoto(\''+c.id+'\')" title="Ver comprobante">📷</span>' : '';
-    return '<tr><td style="text-align:left;font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.fecha+'</td><td class="vname">'+c.vendor+'</td><td>'+c.zona+'</td><td>'+c.cliente+fueraTag+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.folio+'</td><td>'+c.tipo+' '+fotoBtn+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:var(--grn);text-align:right;">'+fmt(c.monto)+'</td><td>'+pill+'</td></tr>';
+    var waIcono = c.compartido ? '<span style="color:#15803d;" title="El vendedor tocó compartir">✅</span>' : '<span style="color:#dc2626;font-weight:900;" title="No se tocó el botón de compartir">❌</span>';
+    return '<tr><td style="text-align:left;font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.fecha+'</td><td class="vname">'+c.vendor+'</td><td>'+c.zona+'</td><td>'+c.cliente+fueraTag+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.folio+'</td><td>'+c.tipo+' '+fotoBtn+'</td><td style="font-size:10px;color:var(--ink2);">'+(c.banco||'—')+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:var(--grn);text-align:right;">'+fmt(c.monto)+'</td><td>'+pill+'</td><td style="text-align:center;font-size:14px;">'+waIcono+'</td></tr>';
   }).join('');
 }
 
@@ -1031,10 +1032,10 @@ function exportarGeneral(){
   rows1.push([]);
   rows1.push(['TOTAL GENERAL','', totCarteraGen, totCobradoGen, totCarteraGen>0?parseFloat(((totCobradoGen/totCarteraGen)*100).toFixed(1)):0, totFaltaGen, totRecibosGen, '']);
 
-  var hdr2 = ['Vendedor','Zona','Fecha','Cliente','Folio','Tipo','Monto','Banco','Estado','Fuera de Planilla','Descuento','Devolución','Sdo. Favor Generado','Sdo. Favor Aplicado','Tiene Foto'];
+  var hdr2 = ['Vendedor','Zona','Fecha','Cliente','Folio','Tipo','Monto','Banco','Estado','Fuera de Planilla','Descuento','Devolución','Sdo. Favor Generado','Sdo. Favor Aplicado','Tiene Foto','Compartido WhatsApp'];
   var rows2 = todos.slice().sort(function(a,b){ return String(a.vendor).toUpperCase().localeCompare(String(b.vendor).toUpperCase()); })
-    .map(function(r){ return [r.vendor||'—', r.zona||'—', r.fecha||'—', r.cliente||'—', r.folio||'—', r.tipo||'—', p0(r.monto), r.banco||'Efectivo', r.estado||'—', r.fueraDePlanilla?'Sí':'No', p0(r.descuento), p0(r.devolucion), p0(r.favorGenerado), p0(r.favorAplicado), r.tieneFoto?'Sí':'No']; });
-  if(!rows2.length) rows2.push(['Sin recibos','','','','','','','','','','','','','','']);
+    .map(function(r){ return [r.vendor||'—', r.zona||'—', r.fecha||'—', r.cliente||'—', r.folio||'—', r.tipo||'—', p0(r.monto), r.banco||'Efectivo', r.estado||'—', r.fueraDePlanilla?'Sí':'No', p0(r.descuento), p0(r.devolucion), p0(r.favorGenerado), p0(r.favorAplicado), r.tieneFoto?'Sí':'No', r.compartido?'Sí':'No']; });
+  if(!rows2.length) rows2.push(['Sin recibos','','','','','','','','','','','','','','','']);
 
   var bancos3 = {};
   depositosTodos.forEach(function(d){
