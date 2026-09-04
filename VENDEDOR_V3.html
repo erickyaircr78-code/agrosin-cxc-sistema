@@ -217,6 +217,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
     <div class="tabs">
       <button type="button" class="tab act" id="tabBtn1" onclick="irTab(1)">1. Cobrar</button>
       <button type="button" class="tab" id="tabBtn2" onclick="irTab(2)">2. Depósito<span class="badge-cont" id="badgePend" style="display:none;"></span></button>
+      <button type="button" class="tab" id="tabBtn3" onclick="irTab(3)">3. Historial</button>
     </div>
 
     <!-- TAB 1: Cobrar -->
@@ -351,7 +352,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           </div>
         </div>
 
-        <button type="button" class="btn-reg btn-morado" id="btnEnviar" style="margin-top:14px;" onclick="registrarCobro()"><span>📸</span> Generar recibo</button>
+        <button type="button" class="btn-reg btn-morado" id="btnEnviar" style="margin-top:14px;" onclick="mostrarConfirmacionRecibo()"><span>📸</span> Generar recibo</button>
         <button type="button" class="btn-secundario" onclick="cancelarSeleccion()">← Buscar otra factura</button>
       </div>
 
@@ -430,6 +431,15 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
       </div>
     </div>
 
+    <!-- TAB 3: Historial de la semana -->
+    <div id="tab3" style="display:none;">
+      <div class="tarjeta" id="totalHistorialBox" style="background:var(--azul);color:#fff;">
+        <div style="font-size:10px;opacity:.8;text-transform:uppercase;font-weight:800;">Total esta semana</div>
+        <div style="font-size:24px;font-weight:900;margin-top:2px;" id="totalHistorialVal">—</div>
+      </div>
+      <div id="listaHistorial" style="margin-top:14px;"></div>
+    </div>
+
   </div>
 </div>
 
@@ -442,6 +452,16 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
     <input type="text" id="inpConfirmarBorrar" placeholder="Escribe BORRAR" oninput="validarBorrar()" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:800;text-align:center;text-transform:uppercase;margin-bottom:14px;">
     <button type="button" id="btnConfirmarBorrarModal" onclick="borrarPruebasVendedor()" disabled style="width:100%;padding:14px;background:#94a3b8;color:#fff;border:none;border-radius:12px;font-weight:900;font-size:14px;margin-bottom:8px;">Confirmar borrado</button>
     <button type="button" onclick="cerrarModalBorrar()" style="width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:800;font-size:13px;">Cancelar</button>
+  </div>
+</div>
+
+<div id="modalConfirmarRecibo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:18px;max-width:360px;width:100%;padding:22px;">
+    <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px;">¿Todo esto es correcto?</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Revisa antes de generar el recibo — una vez enviado al cliente, ya no se puede deshacer.</div>
+    <div id="resumenConfirmarRecibo"></div>
+    <button type="button" onclick="confirmarYRegistrarCobro()" style="width:100%;padding:14px;background:#1d4ed8;color:#fff;border:none;border-radius:12px;font-weight:900;font-size:14px;margin-top:18px;">✓ Sí, todo correcto — generar recibo</button>
+    <button type="button" onclick="document.getElementById('modalConfirmarRecibo').style.display='none';" style="width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:700;font-size:13px;margin-top:8px;">← No, quiero revisar de nuevo</button>
   </div>
 </div>
 
@@ -571,14 +591,16 @@ function escucharAvance(){
     renderAvance();
   });
   db.ref('cobros/'+miZona+'/'+miKey).on('value', function(snap){
-    var arr = []; snap.forEach(function(c){ arr.push(c.val()); });
+    var arr = []; snap.forEach(function(c){ arr.push(Object.assign({id:c.key, fueraDePlanilla:false}, c.val())); });
     misCobrosRegulares = arr.filter(function(c){ return c.ts >= inicioSem; });
     renderAvance();
+    refrescarHistorialSiVisible();
   });
   db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey).on('value', function(snap){
-    var arr = []; snap.forEach(function(c){ arr.push(c.val()); });
+    var arr = []; snap.forEach(function(c){ arr.push(Object.assign({id:c.key, fueraDePlanilla:true}, c.val())); });
     misCobrosFuera = arr.filter(function(c){ return c.ts >= inicioSem; });
     renderAvance();
+    refrescarHistorialSiVisible();
   });
   db.ref('depositos/'+miKey).on('value', function(snap){
     var arr = []; snap.forEach(function(d){ arr.push(d.val()); });
@@ -630,6 +652,79 @@ function renderAvance(){
   document.getElementById('avanceSub').textContent = pct.toFixed(1)+'% de tu meta · faltan '+fmt(falta);
 }
 
+function refrescarHistorialSiVisible(){
+  if(document.getElementById('tab3').style.display !== 'none') renderHistorial();
+}
+
+var VENTANA_CORRECCION_MS = 10*60*1000; // 10 minutos
+function puedeCorregirse(c){
+  var dentroDeTiempo = (Date.now() - c.ts) < VENTANA_CORRECCION_MS;
+  var sinTocarEfectivo = c.tipo!=='Efectivo' || c.estado==='pendiente'; // si es efectivo, que nadie lo haya depositado/entregado ya
+  var sinSaldoAFavorDeByMedio = !(c.favorGenerado>0.005) && !(c.favorAplicado>0.005); // casos simples únicamente, por seguridad
+  return dentroDeTiempo && sinTocarEfectivo && sinSaldoAFavorDeByMedio;
+}
+function renderHistorial(){
+  var todos = misCobrosRegulares.concat(misCobrosFuera).sort(function(a,b){ return b.ts-a.ts; });
+  var total = todos.reduce(function(s,c){ return s+(c.monto||0); },0);
+  document.getElementById('totalHistorialVal').textContent = fmt(total);
+
+  var cont = document.getElementById('listaHistorial');
+  if(!todos.length){ cont.innerHTML = '<div class="vacio">Sin cobros registrados esta semana.</div>'; return; }
+
+  var diaActual = null, html = '';
+  todos.forEach(function(c){
+    var etiquetaDia = new Date(c.ts).toLocaleDateString('es-MX',{weekday:'long', day:'numeric', month:'short'});
+    if(etiquetaDia !== diaActual){
+      diaActual = etiquetaDia;
+      html += '<div style="font-size:11px;font-weight:800;color:var(--gris);text-transform:uppercase;margin:14px 0 8px 2px;">'+etiquetaDia+'</div>';
+    }
+    var hora = new Date(c.ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    var fotoTag = c.tieneFoto ? '<span style="display:inline-block;margin-top:4px;font-size:9px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:8px;font-weight:700;">📷 Con foto</span>' : '';
+    var btnCorregir = puedeCorregirse(c) ? '<button type="button" onclick="corregirCobro(\''+c.id+'\','+c.fueraDePlanilla+')" style="margin-top:6px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:800;">✕ Corregir</button>' : '';
+    html += '<div class="tarjeta" style="padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">'+
+      '<div><div style="font-size:13px;font-weight:800;color:var(--texto);">'+(c.cliente||'—')+'</div>'+
+      '<div style="font-size:10px;color:var(--gris);margin-top:2px;">'+(c.folio||'')+' · '+c.tipo+' · '+hora+'</div>'+fotoTag+'</div>'+
+      '<div style="text-align:right;"><div style="font-size:14px;font-weight:900;color:var(--verde);">'+fmt(c.monto)+'</div>'+btnCorregir+'</div></div>';
+  });
+  cont.innerHTML = html;
+}
+
+function corregirCobro(id, esFueraDePlanilla){
+  var todos = misCobrosRegulares.concat(misCobrosFuera);
+  var c = todos.find(function(x){ return x.id===id; });
+  if(!c || !puedeCorregirse(c)){ toast('Ya no se puede corregir (pasaron los 10 min o ya se procesó)','err'); renderHistorial(); return; }
+
+  var basePath = esFueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+id : 'cobros/'+miZona+'/'+miKey+'/'+id;
+
+  function finalizarBorrado(){
+    var updates = {};
+    updates[basePath] = null;
+    db.ref('correccionesLog/'+miZona+'/'+miKey).push({
+      folio:c.folio||null, cliente:c.cliente||null, monto:c.monto||0, tipo:c.tipo,
+      corregidoTs:Date.now(), tsOriginal:c.ts, vendedor:miNombre
+    });
+    db.ref().update(updates).then(function(){
+      toast('✓ Corregido — ya puedes volver a capturarlo bien','ok');
+    }).catch(function(e){ toast('Error: '+e.message,'err'); });
+  }
+
+  if(!esFueraDePlanilla && c.planillaTs && c.folio){
+    var facturaRef = db.ref('planillas/'+miZona+'/'+miKey+'/'+c.planillaTs+'/facturas/'+c.folio);
+    facturaRef.once('value').then(function(snap){
+      var f = snap.val();
+      if(f){
+        var estadoRestaurado = (c.saldoAntes >= (f.total||0)-0.01) ? 'pendiente' : 'abono';
+        var updatesFactura = {};
+        updatesFactura[facturaRef.path.toString()+'/saldo'] = c.saldoAntes;
+        updatesFactura[facturaRef.path.toString()+'/estado'] = estadoRestaurado;
+        db.ref().update(updatesFactura).then(finalizarBorrado);
+      } else { finalizarBorrado(); }
+    });
+  } else {
+    finalizarBorrado();
+  }
+}
+
 function fijarVendedor(){
   var zona = document.getElementById('selZona').value;
   var nombre = document.getElementById('selVendedor').value;
@@ -653,9 +748,12 @@ function cambiarVendedor(){
 function irTab(n){
   document.getElementById('tabBtn1').classList.toggle('act', n===1);
   document.getElementById('tabBtn2').classList.toggle('act', n===2);
+  document.getElementById('tabBtn3').classList.toggle('act', n===3);
   document.getElementById('tab1').style.display = n===1 ? '' : 'none';
   document.getElementById('tab2').style.display = n===2 ? '' : 'none';
+  document.getElementById('tab3').style.display = n===3 ? '' : 'none';
   if(n===2) renderPendientes();
+  if(n===3) renderHistorial();
 }
 
 /* ── Cargar la planilla activa del vendedor ── */
@@ -1113,6 +1211,21 @@ function recalcular(){
 }
 
 /* ── Registrar el cobro ── */
+function mostrarConfirmacionRecibo(){
+  if(!facturaSel) return;
+  var calcRow = document.querySelector('#calcBox .calc-row.total');
+  var montoTxt = calcRow ? calcRow.children[1].textContent : '—';
+  var resumen = document.getElementById('resumenConfirmarRecibo');
+  function fila(lbl, val, grande){
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;"><span style="font-size:11px;color:#64748b;font-weight:700;">'+lbl+'</span><span style="font-size:'+(grande?'16px':'13px')+';color:'+(grande?'#15803d':'#0f172a')+';font-weight:'+(grande?'900':'800')+';text-align:right;">'+val+'</span></div>';
+  }
+  resumen.innerHTML = fila('Cliente', facturaSel.nombre)+fila('Folio', facturaSel.folio)+fila('Cómo pagó', tipoActual)+fila('Monto', montoTxt, true);
+  document.getElementById('modalConfirmarRecibo').style.display = 'flex';
+}
+function confirmarYRegistrarCobro(){
+  document.getElementById('modalConfirmarRecibo').style.display = 'none';
+  registrarCobro();
+}
 function registrarCobro(){
   if(!facturaSel){ toast('Selecciona una factura primero','err'); return; }
   if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco/terminal','err'); return; }
