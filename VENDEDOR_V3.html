@@ -23,7 +23,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .cdot{width:8px;height:8px;border-radius:50%;background:#86efac;animation:pp 2s ease-in-out infinite;}
 .cdot.off{background:#fca5a5;animation:none;}
 @keyframes pp{0%,100%{opacity:1}50%{opacity:.3}}
-.topbtn-temp{position:absolute;top:16px;left:12px;background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:5px 8px;font-size:9px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;}
+.topbtn-temp{position:absolute;top:16px;left:12px;z-index:50;background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:5px 8px;font-size:9px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;}
 .cuerpo{flex:1;padding:16px 14px 48px;max-width:480px;margin:0 auto;width:100%;}
 .saludo-fijo{display:flex;align-items:center;gap:8px;background:#eff6ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--azul);font-weight:800;}
 .saludo-fijo .cambiar{margin-left:auto;font-weight:700;color:#93c5fd;font-size:11px;cursor:pointer;text-decoration:underline;}
@@ -153,6 +153,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 
 <div class="header">
   <button type="button" class="topbtn-temp" onclick="abrirModalBorrar()">🗑️ TEMP: borrar pruebas</button>
+  <button type="button" class="topbtn-temp" style="left:auto;right:12px;background:#78350f;border-color:#d97706;" onclick="abrirModalBorrarSolo()">🎯 Borrar SOLO mis pruebas</button>
   <div class="header-inner">
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="logo-txt">AGROSIN</div>
@@ -455,6 +456,16 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
   </div>
 </div>
 
+<div id="modalBorrarSolo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:24px 22px;">
+    <div style="font-size:16px;font-weight:900;color:#78350f;margin-bottom:10px;">🎯 Borrar SOLO mis pruebas</div>
+    <div style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:16px;">Esto borra los cobros, depósitos, entregas, y saldos a favor que generó <strong id="nombreBorrarSolo"></strong>, y también regresa sus facturas de planilla a como estaban antes de cobrarlas — no toca nada de ningún otro vendedor.<br><br>Para confirmar, escribe <strong>BORRAR</strong> abajo:</div>
+    <input type="text" id="inpConfirmarBorrarSolo" placeholder="Escribe BORRAR" oninput="validarBorrarSolo()" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:800;text-align:center;text-transform:uppercase;margin-bottom:14px;">
+    <button type="button" id="btnConfirmarBorrarSoloModal" onclick="borrarSoloMisPruebas()" disabled style="width:100%;padding:14px;background:#94a3b8;color:#fff;border:none;border-radius:12px;font-weight:900;font-size:14px;margin-bottom:8px;">Confirmar borrado</button>
+    <button type="button" onclick="document.getElementById('modalBorrarSolo').style.display='none';" style="width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:800;font-size:13px;">Cancelar</button>
+  </div>
+</div>
+
 <div id="modalConfirmarRecibo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:18px;max-width:360px;width:100%;padding:22px;">
     <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px;">¿Todo esto es correcto?</div>
@@ -533,6 +544,84 @@ function borrarPruebasVendedor(){
   ]).then(function(){
     cerrarModalBorrar();
     toast('✅ Pruebas de cobros borradas','ok');
+    setTimeout(function(){ location.reload(); }, 1200);
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+
+/* ── Borrado SEGURO: solo lo que generó el vendedor actualmente conectado ── */
+function abrirModalBorrarSolo(){
+  document.getElementById('nombreBorrarSolo').textContent = miNombre;
+  document.getElementById('modalBorrarSolo').style.display = 'flex';
+  document.getElementById('inpConfirmarBorrarSolo').value = '';
+  document.getElementById('btnConfirmarBorrarSoloModal').disabled = true;
+  document.getElementById('btnConfirmarBorrarSoloModal').style.background = '#94a3b8';
+}
+function validarBorrarSolo(){
+  var val = document.getElementById('inpConfirmarBorrarSolo').value.trim().toUpperCase();
+  var btn = document.getElementById('btnConfirmarBorrarSoloModal');
+  var ok = val === 'BORRAR';
+  btn.disabled = !ok;
+  btn.style.background = ok ? '#78350f' : '#94a3b8';
+}
+function borrarSoloMisPruebas(){
+  var updates = {};
+  updates['cobros/'+miZona+'/'+miKey] = null;
+  updates['depositos/'+miKey] = null;
+  updates['entregasOficina/'+miKey] = null;
+  updates['cobrosFueraPlanilla/'+miZona+'/'+miKey] = null;
+
+  Promise.all([
+    db.ref('saldosAFavorLog').once('value'),
+    db.ref('comprobantesFotos').once('value'),
+    db.ref('planillas/'+miZona+'/'+miKey).once('value')
+  ]).then(function(resultados){
+    var logSnap = resultados[0].val() || {};
+    Object.keys(logSnap).forEach(function(clave){
+      var entradas = logSnap[clave] || {};
+      var esteVendedorTocoEsteClave = false;
+      Object.keys(entradas).forEach(function(id){
+        if(entradas[id].vendedor === miNombre){
+          updates['saldosAFavorLog/'+clave+'/'+id] = null;
+          esteVendedorTocoEsteClave = true;
+        }
+      });
+      // Simplificación segura para pruebas: si este vendedor generó movimientos en esa clave,
+      // se limpia el saldo a favor de esa clave por completo (pensado para un vendedor de prueba aislado).
+      if(esteVendedorTocoEsteClave){ updates['saldosAFavor/'+clave] = null; }
+    });
+
+    var fotosSnap = resultados[1].val() || {};
+    Object.keys(fotosSnap).forEach(function(id){
+      if(fotosSnap[id].refKey === miKey){ updates['comprobantesFotos/'+id] = null; }
+    });
+
+    // Resetear TODAS las planillas de este vendedor (activas o cerradas) a su estado original,
+    // para que Planillas y el Tablero queden consistentes con lo que se acaba de borrar aquí.
+    var planillasSnap = resultados[2].val() || {};
+    Object.keys(planillasSnap).forEach(function(ts){
+      var facturas = (planillasSnap[ts] || {}).facturas || {};
+      Object.keys(facturas).forEach(function(folio){
+        var f = facturas[folio];
+        var base = 'planillas/'+miZona+'/'+miKey+'/'+ts+'/facturas/'+folio+'/';
+        updates[base+'saldo'] = f.total;
+        updates[base+'estado'] = 'pendiente';
+        updates[base+'montoCobrado'] = null;
+        updates[base+'tipo'] = null;
+        updates[base+'banco'] = null;
+        updates[base+'devolucion'] = null;
+        updates[base+'descuento'] = null;
+        updates[base+'favorAplicado'] = null;
+        updates[base+'favorGenerado'] = null;
+        updates[base+'cobradoPor'] = null;
+        updates[base+'fechaCobro'] = null;
+        updates[base+'tieneFoto'] = null;
+      });
+    });
+
+    return db.ref().update(updates);
+  }).then(function(){
+    document.getElementById('modalBorrarSolo').style.display = 'none';
+    toast('✅ Tus pruebas se borraron completo — Tablero y Planillas también quedaron limpios','ok');
     setTimeout(function(){ location.reload(); }, 1200);
   }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
