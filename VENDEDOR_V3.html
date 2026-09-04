@@ -44,8 +44,8 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 .btn-morado{background:var(--morado);box-shadow:0 4px 16px rgba(124,58,237,.35);}
 .tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
 .tipo-opt{padding:14px 6px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;text-align:center;font-size:13px;font-weight:800;color:var(--gris);cursor:pointer;user-select:none;}
-.dias-pago-grid{display:flex;gap:5px;}
-.dia-pago{flex:1;text-align:center;padding:10px 2px;border-radius:10px;border:2px solid var(--borde);font-weight:800;font-size:12px;color:var(--gris);background:#f8fafc;cursor:pointer;user-select:none;}
+.dias-pago-grid{display:flex;gap:4px;}
+.dia-pago{flex:1;text-align:center;padding:8px 1px;border-radius:9px;border:2px solid var(--borde);font-weight:800;font-size:11px;line-height:1.3;color:var(--gris);background:#f8fafc;cursor:pointer;user-select:none;}
 .dia-pago.act{background:var(--azul);border-color:var(--azul);color:#fff;}
 .dia-pago.futuro{opacity:.35;cursor:not-allowed;}
 .tipo-opt.act{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 3px 10px rgba(29,78,216,.3);}
@@ -278,7 +278,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
           <div class="tipo-opt" data-tipo="Transferencia" onclick="elegirTipo('Transferencia')">🏦 Transferencia</div>
           <div class="tipo-opt" data-tipo="Cheque" onclick="elegirTipo('Cheque')">📝 Cheque</div>
           <div class="tipo-opt" data-tipo="Deposito" onclick="elegirTipo('Deposito')">🏧 Depósito</div>
-          <div class="tipo-opt" data-tipo="Tarjeta" onclick="elegirTipo('Tarjeta')">💳 Tarjeta de crédito</div>
+          <div class="tipo-opt" data-tipo="Tarjeta" onclick="elegirTipo('Tarjeta')">💳 Tarjeta</div>
         </div>
 
         <div class="campo" id="bloqueBanco" style="display:none;">
@@ -296,6 +296,15 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
               <span class="fs-cambiar" onclick="quitarFoto('comprobante')" style="margin-left:10px;">quitar</span>
             </div>
           </div>
+        </div>
+
+        <div class="campo" id="bloqueChequeTipo" style="display:none;">
+          <label>¿El cheque es de cobro inmediato o está posfechado?</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="tipo-opt act" id="btnChequeInmediato" onclick="elegirChequePosfechado(false)">✅ Cobro inmediato</div>
+            <div class="tipo-opt" id="btnChequePosfechado" onclick="elegirChequePosfechado(true)">📅 Posfechado</div>
+          </div>
+          <div id="notaChequePosfechado" style="display:none;font-size:11px;color:#92400e;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.4;">Este cheque no se deposita — lo llevas físicamente a oficina y se lo entregas a Miri.</div>
         </div>
 
         <div class="toggle-desc" onclick="toggleDevolucion()">
@@ -852,20 +861,34 @@ function continuarFueraPlanilla(){
   document.getElementById('tarjetaFueraPlanilla').style.display = 'none';
   mostrarFormularioCobro();
 }
-/* ── ¿Cuándo pagó? — por si el cliente manda la ficha días después. Arranca siempre en "hoy". ── */
-var diaPagoOffset = 0; // 0 = hoy, 1 = ayer, 2 = antier... (días atrás dentro de la misma semana)
-var DIAS_PAGO_ABREV = ['Lun','Mar','Mié','Jue','Vie','Sáb'];
-function renderDiasPago(){
-  var hoy = new Date();
+/* ── ¿Cuándo pagó? — alcanza hasta el sábado de la semana pasada, por si reportan tarde ya entrada la nueva semana ── */
+var diaPagoOffset = 0; // 0 = hoy; positivo = cuántos días atrás
+function calcularDiasPago(){
+  function soloFecha(d){ var x = new Date(d); x.setHours(0,0,0,0); return x; }
+  var hoy = soloFecha(new Date());
   var diaSemana = hoy.getDay(); // 0=domingo,1=lunes,...,6=sábado
-  var indexHoy = diaSemana===0 ? 6 : diaSemana-1; // convertir a 0=lunes,...,6=domingo
+  var indexHoy = diaSemana===0 ? 6 : diaSemana-1; // 0=lunes,...,5=sábado
+  var lunesEstaSemana = new Date(hoy); lunesEstaSemana.setDate(hoy.getDate()-indexHoy);
+  var sabadoAnterior = new Date(lunesEstaSemana); sabadoAnterior.setDate(lunesEstaSemana.getDate()-2);
+
+  var dias = [{label:'Sáb', fecha:sabadoAnterior}];
+  var abrevs = ['Lun','Mar','Mié','Jue','Vie','Sáb'];
+  for(var i=0;i<6;i++){
+    var d = new Date(lunesEstaSemana); d.setDate(lunesEstaSemana.getDate()+i);
+    dias.push({label:abrevs[i], fecha:d});
+  }
+  return dias.map(function(d){
+    var offset = Math.round((hoy - d.fecha)/86400000);
+    return {label:d.label, numDia:d.fecha.getDate(), offset:offset, esFuturo: offset<0};
+  });
+}
+function renderDiasPago(){
   var cont = document.getElementById('diasPagoGrid');
   if(!cont) return;
-  cont.innerHTML = DIAS_PAGO_ABREV.map(function(abrev, idx){
-    var esFuturo = idx > indexHoy;
-    var offsetDeEsteBoton = indexHoy - idx;
-    var esActivo = !esFuturo && diaPagoOffset === offsetDeEsteBoton;
-    return '<div class="dia-pago'+(esActivo?' act':'')+(esFuturo?' futuro':'')+'"'+(esFuturo?'':' onclick="seleccionarDiaPago('+offsetDeEsteBoton+')"')+'>'+abrev+'</div>';
+  var dias = calcularDiasPago();
+  cont.innerHTML = dias.map(function(d){
+    var esActivo = !d.esFuturo && diaPagoOffset === d.offset;
+    return '<div class="dia-pago'+(esActivo?' act':'')+(d.esFuturo?' futuro':'')+'"'+(d.esFuturo?'':' onclick="seleccionarDiaPago('+d.offset+')"')+'>'+d.label+'<br><span style="font-size:9px;opacity:.75;">'+d.numDia+'</span></div>';
   }).join('');
 }
 function seleccionarDiaPago(offset){
@@ -890,6 +913,7 @@ function mostrarFormularioCobro(){
     favorPrevioHtml+
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   diaPagoOffset = 0; // siempre arranca en "hoy" al elegir una factura nueva
+  chequePosfechado = false;
   renderDiasPago();
   document.getElementById('inpMonto').value = '';
   document.getElementById('inpDevolucion').value = '';
@@ -1034,6 +1058,7 @@ function quitarFoto(cual){
   else { fotoDepositoBase64 = null; document.getElementById('previewDeposito').style.display='none'; document.getElementById('inpFotoDeposito').value=''; }
 }
 
+var chequePosfechado = false;
 function elegirTipo(t){
   tipoActual = t;
   document.querySelectorAll('#tipoGrid .tipo-opt').forEach(function(el){
@@ -1041,6 +1066,14 @@ function elegirTipo(t){
   });
   document.getElementById('bloqueBanco').style.display = (t==='Efectivo') ? 'none' : '';
   document.getElementById('lblBanco').textContent = (t==='Tarjeta') ? 'Banco / Terminal' : 'Banco';
+  document.getElementById('bloqueChequeTipo').style.display = (t==='Cheque') ? '' : 'none';
+  if(t==='Cheque'){ elegirChequePosfechado(false); } // arranca en "cobro inmediato" cada vez que se elige Cheque
+}
+function elegirChequePosfechado(esPosfechado){
+  chequePosfechado = esPosfechado;
+  document.getElementById('btnChequeInmediato').classList.toggle('act', !esPosfechado);
+  document.getElementById('btnChequePosfechado').classList.toggle('act', esPosfechado);
+  document.getElementById('notaChequePosfechado').style.display = esPosfechado ? '' : 'none';
 }
 
 /* ── Modo de pago: completo (habilita % descuento) o abono (sin descuento) ── */
@@ -1311,6 +1344,7 @@ function registrarCobro(){
     otraFacturaFueraDePlanilla: otraFueraDePlanilla,
     saldoAntes: saldoAntes, saldoDespues: saldoDespues,
     ts: ahora.getTime(), fecha: fecha, folioRecibo: folioRecibo,
+    chequePosfechado: (tipoActual==='Cheque' && chequePosfechado) ? true : null,
     estado: tipoActual==='Efectivo' ? 'pendiente' : 'confirmado'
   };
 
@@ -1430,6 +1464,14 @@ function registrarCobro(){
       if(claveCliente) logPromises.push(db.ref('saldosAFavorLog/'+claveCliente).push({tipo:'aplicado', monto:a.aplicado, folio:a.folio, vendedor:miNombre, ts:ahora.getTime(), nota:'Aplicado directo desde el pago de más en '+facturaSel.folio}));
     });
     return Promise.all(logPromises);
+  }).then(function(){
+    if(tipoActual==='Cheque' && chequePosfechado){
+      return db.ref('entregasOficina/'+miKey).push({
+        vendor: miNombre, key: miKey, zona: miZona,
+        totalCobrado: monto, tipo: 'cheque_posfechado', estado: 'pendiente',
+        cobroId: ref.key, cliente: facturaSel.nombre, folio: facturaSel.folio, ts: ahora.getTime()
+      });
+    }
   }).then(function(){
     mostrarRecibo(ultimoTicket);
   }).catch(function(e){ toast('Error al guardar: '+e.message,'err'); });
