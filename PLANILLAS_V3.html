@@ -492,7 +492,8 @@ function renderMain(results){
   });
   tcCap.innerHTML =
     '<div class="tlbr-cap"><input type="text" class="srch-cap" id="capBusca" placeholder="🔍 Buscar por vendedor, cliente, folio, monto o tipo de pago…" oninput="dibujarTablaPorCapturar()">'+
-    '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button></div>'+
+    '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button>'+
+    '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button></div>'+
     '<div id="tcCapCuerpo"></div>';
 
   // TAB HISTORIAL
@@ -1356,6 +1357,47 @@ function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
   db.ref('planillas/'+G.zona+'/'+k+'/'+hojaKey+'/facturas/'+folio+'/capturadoEnMicrosip').set(true)
     .then(function(){ toast('✓ Marcado como capturado en Microsip','ok'); })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+function repararFotosAntiguas(){
+  toast('⏳ Buscando fotos antiguas sin conectar…','');
+  var zonas = Object.keys(ZONAS);
+  var totalReparadas = 0;
+  var promesas = [];
+  zonas.forEach(function(zona){
+    (ZONAS[zona]||[]).forEach(function(vendorNombre){
+      var k = key(vendorNombre);
+      promesas.push(
+        Promise.all([
+          db.ref('cobros/'+zona+'/'+k).once('value'),
+          db.ref('planillas/'+zona+'/'+k).once('value')
+        ]).then(function(resultados){
+          var cobrosSnap = resultados[0].val() || {};
+          var planillasSnap = resultados[1].val() || {};
+          var folioAFotoId = {};
+          Object.keys(cobrosSnap).forEach(function(cobroId){
+            var c = cobrosSnap[cobroId];
+            if(c.tieneFoto && c.folio){ folioAFotoId[c.folio] = cobroId; }
+          });
+          var updates = {};
+          Object.keys(planillasSnap).forEach(function(ts){
+            var facturas = (planillasSnap[ts]||{}).facturas || {};
+            Object.keys(facturas).forEach(function(folio){
+              var f = facturas[folio];
+              if(f.tieneFoto && !f.fotoId && folioAFotoId[folio]){
+                updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
+                totalReparadas++;
+              }
+            });
+          });
+          if(Object.keys(updates).length) return db.ref().update(updates);
+        })
+      );
+    });
+  });
+  Promise.all(promesas).then(function(){
+    toast('✓ Se repararon '+totalReparadas+' foto(s) antigua(s)','ok');
+    cargarMain();
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 function verFoto(id){
   db.ref('comprobantesFotos/'+id).once('value').then(function(snap){
