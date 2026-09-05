@@ -945,6 +945,14 @@ function mostrarFormularioCobro(){
      Si no tiene, queda en 0% sin ninguna opción de cambiarlo. ── */
 var pctAutorizadoCliente = 0;
 var aplicarDescuento = false;
+function diasDesdeEmision(fechaStr){
+  if(!fechaStr) return null;
+  var p = fechaStr.split('/');
+  if(p.length!==3) return null;
+  var emision = new Date(+p[2], +p[1]-1, +p[0]); emision.setHours(0,0,0,0);
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((hoy-emision)/86400000);
+}
 function buscarDescuentoFijoDelCliente(){
   var info = document.getElementById('infoDescuentoPct');
   var toggleWrap = document.getElementById('toggleAplicarDescuento');
@@ -955,6 +963,16 @@ function buscarDescuentoFijoDelCliente(){
     pctAutorizadoCliente = 0;
     info.textContent = 'Sin clave de cliente — no aplica descuento';
     info.style.color = 'var(--gris)';
+    recalcular();
+    return;
+  }
+  var dias = diasDesdeEmision(facturaSel.fecha);
+  if(dias!==null && dias>34){
+    pctAutorizadoCliente = 0;
+    info.textContent = '⏰ Ya pasaron '+dias+' días desde la emisión (34 es el límite) — el descuento ya no aplica';
+    info.style.color = 'var(--ora)';
+    info.style.borderColor = '#fed7aa';
+    info.style.background = '#fff7ed';
     recalcular();
     return;
   }

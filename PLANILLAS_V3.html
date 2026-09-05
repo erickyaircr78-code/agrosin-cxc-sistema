@@ -56,6 +56,8 @@ body{font-family:'Montserrat',sans-serif;background:var(--fon);min-height:100vh;
 .tab.act{color:var(--ora);border-bottom-color:var(--ora)}
 .tab.azul{color:#1D4ED8}
 .tab.azul.act{color:#1D4ED8;border-bottom-color:#1D4ED8}
+.tab.verde{color:#15803d}
+.tab.verde.act{color:#15803d;border-bottom-color:#15803d}
 .tc{display:none}
 .tc.act{display:block}
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
@@ -411,6 +413,7 @@ function renderMain(results){
   var tabData = [
     {id:'tc-act', label:'Planillas activas ('+activas.length+')', cls:''},
     {id:'tc-sin', label:'Sin planilla ('+sin.length+')', cls:''},
+    {id:'tc-cap', label:'📥 Por capturar', cls:'verde'},
     {id:'tc-hist', label:'Historial', cls:'azul'}
   ];
   tabData.forEach(function(t, i){
@@ -461,6 +464,48 @@ function renderMain(results){
   });
   tcSin.appendChild(tbl);
 
+  // TAB POR CAPTURAR — vivo, sin depender de descargar Excel para saber qué falta meter a Microsip
+  var tcCap = document.createElement('div');
+  tcCap.className = 'tc';
+  tcCap.id = 'tc-cap';
+  var porCapturar = [];
+  results.forEach(function(r){
+    if(!r.hoja || !r.hoja.facturas) return;
+    Object.keys(r.hoja.facturas).forEach(function(folio){
+      var f = r.hoja.facturas[folio];
+      if((f.estado==='cobrada' || f.estado==='abono') && !f.capturadoEnMicrosip){
+        porCapturar.push({vendedor:r.vendor, hojaKey:r.hojaKey, folio:folio, cliente:f.nombre, monto:f.montoCobrado, tipo:f.tipo, estado:f.estado});
+      }
+    });
+  });
+  porCapturar.sort(function(a,b){ return String(a.vendedor).localeCompare(String(b.vendedor)); });
+
+  if(!porCapturar.length){
+    tcCap.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Nada pendiente por capturar</div><div class="empty-sub">Todo lo cobrado ya está marcado en Microsip</div></div>';
+  } else {
+    var tblCap = document.createElement('div');
+    tblCap.className = 'tbl';
+    tblCap.innerHTML = '<div class="tbl-head" style="grid-template-columns:1fr 1fr 100px 110px 90px 130px">'+
+      '<div class="th">Vendedor</div><div class="th">Cliente</div><div class="th">Folio</div><div class="th">Monto</div><div class="th">Tipo</div><div class="th">Acción</div></div>';
+    porCapturar.forEach(function(p){
+      var row = document.createElement('div');
+      row.className = 'tbl-row';
+      row.style.gridTemplateColumns = '1fr 1fr 100px 110px 90px 130px';
+      row.innerHTML = '<div class="td b">'+p.vendedor+'</div><div class="td">'+(p.cliente||'—')+'</div>'+
+        '<div class="td g">'+p.folio+'</div><div class="td" style="font-weight:800;color:#15803d;">$'+(+p.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</div>'+
+        '<div class="td g">'+(p.tipo||'—')+'</div>';
+      var btnDiv = document.createElement('div');
+      var btnCap = document.createElement('button');
+      btnCap.style.cssText = 'background:#15803d;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+      btnCap.textContent = '✓ Ya lo capturé';
+      btnCap.addEventListener('click', (function(vv,hk,fo){ return function(){ marcarFacturaCapturada(vv,hk,fo); }; })(p.vendedor, p.hojaKey, p.folio));
+      btnDiv.appendChild(btnCap);
+      row.appendChild(btnDiv);
+      tblCap.appendChild(row);
+    });
+    tcCap.appendChild(tblCap);
+  }
+
   // TAB HISTORIAL
   var tcHist = document.createElement('div');
   tcHist.className = 'tc';
@@ -473,6 +518,7 @@ function renderMain(results){
   main.appendChild(tabsDiv);
   main.appendChild(tcAct);
   main.appendChild(tcSin);
+  main.appendChild(tcCap);
   main.appendChild(tcHist);
 
   // Cargar historial en background
@@ -1313,6 +1359,12 @@ function cargarFueraDePlanilla(){
 function marcarCapturado(vendedorKey, id){
   db.ref('cobrosFueraPlanilla/'+G.zona+'/'+vendedorKey+'/'+id+'/capturadoEnMicrosip').set(true)
     .then(function(){ toast('✓ Marcado como capturado','ok'); })
+    .catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
+  var k = key(vendedorNombre);
+  db.ref('planillas/'+G.zona+'/'+k+'/'+hojaKey+'/facturas/'+folio+'/capturadoEnMicrosip').set(true)
+    .then(function(){ toast('✓ Marcado como capturado en Microsip','ok'); })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 function renderFueraDePlanilla(lista){
