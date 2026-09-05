@@ -1130,13 +1130,13 @@ function marcarComoDescargada(vendor, hojaTs){
 var COLOR_DESCUENTO = 'FFFBBF24', COLOR_DEVOLUCION = 'FF60A5FA', COLOR_FAVOR_GEN = 'FF22C55E', COLOR_FAVOR_APL = 'FF22D3EE';
 var COLOR_FILA_ESPECIAL = 'FFFEF3C7'; // un poco más marcado que antes, sin competir con las celdas específicas
 function pintarFilaEspecial(row, f){
-  var tieneAlgoEspecial = (f.descuento>0) || (f.devolucion>0) || (f.favorGenerado>0) || (f.favorAplicado>0);
-  if(!tieneAlgoEspecial) return;
+  var huboMovimiento = (f.estado==='cobrada' || f.estado==='abono'); // cualquier pago cuenta, sin importar si tuvo descuento/devolución/favor
+  if(!huboMovimiento) return;
   // Primero, todo el renglón en tono suave — para que se note sin tener que recorrerlo
   row.eachCell({includeEmpty:true}, function(celda){
     celda.fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FILA_ESPECIAL}};
   });
-  // Encima, la celda específica con su color más marcado — para saber exactamente cuál caso es
+  // Encima, si además tuvo descuento/devolución/favor, esa celda específica con su color más marcado
   if(f.descuento>0){ row.getCell('Descuento').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DESCUENTO}}; row.getCell('Descuento').font = {bold:true}; }
   if(f.devolucion>0){ row.getCell('Devolución').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DEVOLUCION}}; row.getCell('Devolución').font = {bold:true, color:{argb:'FFFFFFFF'}}; }
   if(f.favorGenerado>0){ row.getCell('Sdo. Favor Generado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_GEN}}; row.getCell('Sdo. Favor Generado').font = {bold:true, color:{argb:'FFFFFFFF'}}; }
