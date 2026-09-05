@@ -1442,6 +1442,7 @@ function registrarCobro(){
         // También se marca en la factura de la planilla, para que el Excel de Lupe la vea (si no es fuera de planilla)
         if(!esFueraDePlanilla && planillaActiva){
           updatesFoto['planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+facturaSel.folio+'/tieneFoto'] = true;
+          updatesFoto['planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+facturaSel.folio+'/fotoId'] = idFotoCobro;
         }
         return db.ref().update(updatesFoto);
       });

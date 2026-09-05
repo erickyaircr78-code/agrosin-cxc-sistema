@@ -486,7 +486,7 @@ function renderMain(results){
     Object.keys(r.hoja.facturas).forEach(function(folio){
       var f = r.hoja.facturas[folio];
       if((f.estado==='cobrada' || f.estado==='abono') && !f.capturadoEnMicrosip){
-        _porCapturarCache.push({vendedor:r.vendor, hojaKey:r.hojaKey, folio:folio, cliente:f.nombre||'—', monto:f.montoCobrado||0, tipo:f.tipo||'—', banco:f.banco||'—', estado:f.estado==='cobrada'?'Cobrada':'Abono'});
+        _porCapturarCache.push({vendedor:r.vendor, hojaKey:r.hojaKey, folio:folio, cliente:f.nombre||'—', monto:f.montoCobrado||0, tipo:f.tipo||'—', banco:f.banco||'—', estado:f.estado==='cobrada'?'Cobrada':'Abono', fotoId:f.fotoId||null});
       }
     });
   });
@@ -1357,6 +1357,21 @@ function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
     .then(function(){ toast('✓ Marcado como capturado en Microsip','ok'); })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
+function verFoto(id){
+  db.ref('comprobantesFotos/'+id).once('value').then(function(snap){
+    var d = snap.val();
+    if(!d || !d.foto){ toast('No se encontró la foto (puede que ya se haya borrado)','warn'); return; }
+    var overlay = document.createElement('div');
+    overlay.style = 'position:fixed;inset:0;background:rgba(15,23,25,.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;';
+    overlay.innerHTML =
+      '<img src="'+d.foto+'" style="max-width:90%;max-height:75vh;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);">'+
+      '<div style="color:#fff;font-size:12px;font-weight:700;">'+(d.vendor||'')+' · '+new Date(d.ts).toLocaleString('es-MX')+'</div>'+
+      '<button type="button" style="padding:10px 24px;background:#fff;color:#0f1923;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Cerrar</button>';
+    overlay.querySelector('button').onclick = function(){ overlay.remove(); };
+    overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }).catch(function(e){ toast('Error al cargar la foto: '+e.message,'err'); });
+}
 
 /* ── Tabla "Por Capturar": buscador universal + columnas ordenables ── */
 var _porCapturarCache = [];
@@ -1399,9 +1414,10 @@ function dibujarTablaPorCapturar(){
     '<th onclick="ordenarPorCapturar(\'estado\')">Estado'+fl('estado')+'</th>'+
     '<th>Acción</th></tr></thead><tbody>';
   lista.forEach(function(p){
+    var fotoBtn = p.fotoId ? ' <span style="cursor:pointer;font-size:14px;" onclick="verFoto(\''+p.fotoId+'\')" title="Ver comprobante">📷</span>' : '';
     html += '<tr><td><b>'+p.vendedor+'</b></td><td>'+p.cliente+'</td><td>'+p.folio+'</td>'+
       '<td style="font-weight:800;color:#15803d;">$'+(+p.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td>'+
-      '<td>'+p.tipo+'</td><td>'+p.banco+'</td>'+
+      '<td>'+p.tipo+fotoBtn+'</td><td>'+p.banco+'</td>'+
       '<td>'+(p.estado==='Abono'?'<span style="color:#ea580c;font-weight:700;">Abono</span>':'<span style="color:#15803d;font-weight:700;">Cobrada</span>')+'</td>'+
       '<td><button type="button" onclick="marcarFacturaCapturada(\''+p.vendedor+'\',\''+p.hojaKey+'\',\''+p.folio+'\')" style="background:#15803d;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">✓ Ya lo capturé</button></td></tr>';
   });
