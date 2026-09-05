@@ -58,6 +58,18 @@ body{font-family:'Montserrat',sans-serif;background:var(--fon);min-height:100vh;
 .tab.azul.act{color:#1D4ED8;border-bottom-color:#1D4ED8}
 .tab.verde{color:#15803d}
 .tab.verde.act{color:#15803d;border-bottom-color:#15803d}
+.tlbr-cap{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.srch-cap{flex:1;padding:9px 14px;border:1.5px solid var(--bor);border-radius:8px;font-size:12px;font-family:'Montserrat',sans-serif;outline:none;}
+.srch-cap:focus{border-color:var(--ora);}
+.btn-excel-cap{background:#15803d;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.tbl-o-cap{background:var(--bla);border:1px solid var(--bor);border-radius:8px;overflow:hidden;}
+.tbl-s-cap{overflow-x:auto;}
+.tbl-cap{width:100%;border-collapse:collapse;min-width:700px;}
+.tbl-cap thead th{background:var(--mar);color:rgba(255,255,255,.85);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;text-align:left;font-weight:700;white-space:nowrap;cursor:pointer;user-select:none;}
+.tbl-cap thead th .flechas{display:inline-flex;flex-direction:column;font-size:7px;line-height:6px;margin-left:4px;opacity:.5;}
+.tbl-cap thead th .flechas .act{opacity:1;color:#4ade80;}
+.tbl-cap tbody td{padding:9px 10px;font-size:12px;border-bottom:1px solid var(--bor);white-space:nowrap;}
+.tbl-cap tbody tr:last-child td{border-bottom:none;}
 .tc{display:none}
 .tc.act{display:block}
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
@@ -468,43 +480,20 @@ function renderMain(results){
   var tcCap = document.createElement('div');
   tcCap.className = 'tc';
   tcCap.id = 'tc-cap';
-  var porCapturar = [];
+  _porCapturarCache = [];
   results.forEach(function(r){
     if(!r.hoja || !r.hoja.facturas) return;
     Object.keys(r.hoja.facturas).forEach(function(folio){
       var f = r.hoja.facturas[folio];
       if((f.estado==='cobrada' || f.estado==='abono') && !f.capturadoEnMicrosip){
-        porCapturar.push({vendedor:r.vendor, hojaKey:r.hojaKey, folio:folio, cliente:f.nombre, monto:f.montoCobrado, tipo:f.tipo, estado:f.estado});
+        _porCapturarCache.push({vendedor:r.vendor, hojaKey:r.hojaKey, folio:folio, cliente:f.nombre||'—', monto:f.montoCobrado||0, tipo:f.tipo||'—', banco:f.banco||'—', estado:f.estado==='cobrada'?'Cobrada':'Abono'});
       }
     });
   });
-  porCapturar.sort(function(a,b){ return String(a.vendedor).localeCompare(String(b.vendedor)); });
-
-  if(!porCapturar.length){
-    tcCap.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Nada pendiente por capturar</div><div class="empty-sub">Todo lo cobrado ya está marcado en Microsip</div></div>';
-  } else {
-    var tblCap = document.createElement('div');
-    tblCap.className = 'tbl';
-    tblCap.innerHTML = '<div class="tbl-head" style="grid-template-columns:1fr 1fr 100px 110px 90px 130px">'+
-      '<div class="th">Vendedor</div><div class="th">Cliente</div><div class="th">Folio</div><div class="th">Monto</div><div class="th">Tipo</div><div class="th">Acción</div></div>';
-    porCapturar.forEach(function(p){
-      var row = document.createElement('div');
-      row.className = 'tbl-row';
-      row.style.gridTemplateColumns = '1fr 1fr 100px 110px 90px 130px';
-      row.innerHTML = '<div class="td b">'+p.vendedor+'</div><div class="td">'+(p.cliente||'—')+'</div>'+
-        '<div class="td g">'+p.folio+'</div><div class="td" style="font-weight:800;color:#15803d;">$'+(+p.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</div>'+
-        '<div class="td g">'+(p.tipo||'—')+'</div>';
-      var btnDiv = document.createElement('div');
-      var btnCap = document.createElement('button');
-      btnCap.style.cssText = 'background:#15803d;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
-      btnCap.textContent = '✓ Ya lo capturé';
-      btnCap.addEventListener('click', (function(vv,hk,fo){ return function(){ marcarFacturaCapturada(vv,hk,fo); }; })(p.vendedor, p.hojaKey, p.folio));
-      btnDiv.appendChild(btnCap);
-      row.appendChild(btnDiv);
-      tblCap.appendChild(row);
-    });
-    tcCap.appendChild(tblCap);
-  }
+  tcCap.innerHTML =
+    '<div class="tlbr-cap"><input type="text" class="srch-cap" id="capBusca" placeholder="🔍 Buscar por vendedor, cliente, folio, monto o tipo de pago…" oninput="dibujarTablaPorCapturar()">'+
+    '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button></div>'+
+    '<div id="tcCapCuerpo"></div>';
 
   // TAB HISTORIAL
   var tcHist = document.createElement('div');
@@ -519,6 +508,7 @@ function renderMain(results){
   main.appendChild(tcAct);
   main.appendChild(tcSin);
   main.appendChild(tcCap);
+  dibujarTablaPorCapturar();
   main.appendChild(tcHist);
 
   // Cargar historial en background
@@ -1134,8 +1124,8 @@ function marcarComoDescargada(vendor, hojaTs){
 
 // ── DESCARGAR PLANILLA ────────────────────────────────────
 // Colores: Descuento=naranja, Devolución=azul, Sdo.Favor Generado=verde, Sdo.Favor Aplicado=verde claro
-var COLOR_DESCUENTO = 'FFFDE68A', COLOR_DEVOLUCION = 'FFBFDBFE', COLOR_FAVOR_GEN = 'FF86EFAC', COLOR_FAVOR_APL = 'FFD1FAE5';
-var COLOR_FILA_ESPECIAL = 'FFFFFAE6'; // tono suave — se ve de volada sin recorrer la fila
+var COLOR_DESCUENTO = 'FFFBBF24', COLOR_DEVOLUCION = 'FF60A5FA', COLOR_FAVOR_GEN = 'FF22C55E', COLOR_FAVOR_APL = 'FF22D3EE';
+var COLOR_FILA_ESPECIAL = 'FFFEF3C7'; // un poco más marcado que antes, sin competir con las celdas específicas
 function pintarFilaEspecial(row, f){
   var tieneAlgoEspecial = (f.descuento>0) || (f.devolucion>0) || (f.favorGenerado>0) || (f.favorAplicado>0);
   if(!tieneAlgoEspecial) return;
@@ -1144,10 +1134,10 @@ function pintarFilaEspecial(row, f){
     celda.fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FILA_ESPECIAL}};
   });
   // Encima, la celda específica con su color más marcado — para saber exactamente cuál caso es
-  if(f.descuento>0) row.getCell('Descuento').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DESCUENTO}};
-  if(f.devolucion>0) row.getCell('Devolución').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DEVOLUCION}};
-  if(f.favorGenerado>0) row.getCell('Sdo. Favor Generado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_GEN}};
-  if(f.favorAplicado>0) row.getCell('Sdo. Favor Aplicado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_APL}};
+  if(f.descuento>0){ row.getCell('Descuento').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DESCUENTO}}; row.getCell('Descuento').font = {bold:true}; }
+  if(f.devolucion>0){ row.getCell('Devolución').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_DEVOLUCION}}; row.getCell('Devolución').font = {bold:true, color:{argb:'FFFFFFFF'}}; }
+  if(f.favorGenerado>0){ row.getCell('Sdo. Favor Generado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_GEN}}; row.getCell('Sdo. Favor Generado').font = {bold:true, color:{argb:'FFFFFFFF'}}; }
+  if(f.favorAplicado>0){ row.getCell('Sdo. Favor Aplicado').fill = {type:'pattern',pattern:'solid',fgColor:{argb:COLOR_FAVOR_APL}}; row.getCell('Sdo. Favor Aplicado').font = {bold:true, color:{argb:'FFFFFFFF'}}; }
 }
 var COLUMNAS_EXCEL = [
   {header:'Hoja',key:'Hoja',width:8}, {header:'Cobrador',key:'Cobrador',width:16},
@@ -1366,6 +1356,85 @@ function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
   db.ref('planillas/'+G.zona+'/'+k+'/'+hojaKey+'/facturas/'+folio+'/capturadoEnMicrosip').set(true)
     .then(function(){ toast('✓ Marcado como capturado en Microsip','ok'); })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+
+/* ── Tabla "Por Capturar": buscador universal + columnas ordenables ── */
+var _porCapturarCache = [];
+var _ordenPorCapturar = {campo:'monto', dir:-1};
+function ordenarPorCapturar(campo){
+  if(_ordenPorCapturar.campo===campo){ _ordenPorCapturar.dir *= -1; } else { _ordenPorCapturar.campo=campo; _ordenPorCapturar.dir=1; }
+  dibujarTablaPorCapturar();
+}
+function dibujarTablaPorCapturar(){
+  var cont = document.getElementById('tcCapCuerpo');
+  if(!cont) return;
+  var q = (document.getElementById('capBusca')?document.getElementById('capBusca').value:'').trim().toLowerCase();
+  var lista = _porCapturarCache.filter(function(p){
+    if(!q) return true;
+    var texto = (p.vendedor+' '+p.cliente+' '+p.folio+' '+p.tipo+' '+p.monto+' '+p.banco+' '+p.estado).toLowerCase();
+    return texto.indexOf(q) >= 0;
+  });
+  var campo = _ordenPorCapturar.campo, dir = _ordenPorCapturar.dir;
+  lista.sort(function(a,b){
+    var av=a[campo], bv=b[campo];
+    if(typeof av==='string'){ av=av.toUpperCase(); bv=bv.toUpperCase(); }
+    if(av<bv) return -1*dir; if(av>bv) return 1*dir; return 0;
+  });
+
+  if(!lista.length){
+    cont.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Nada pendiente por capturar</div><div class="empty-sub">Todo lo cobrado ya está marcado en Microsip</div></div>';
+    return;
+  }
+  function fl(campoCol){
+    var act = campo===campoCol;
+    return '<span class="flechas">'+(act&&dir===1?'<span class="act">▲</span>':'▲')+'<br>'+(act&&dir===-1?'<span class="act">▼</span>':'▼')+'</span>';
+  }
+  var html = '<div class="tbl-o-cap"><div class="tbl-s-cap"><table class="tbl-cap"><thead><tr>'+
+    '<th onclick="ordenarPorCapturar(\'vendedor\')">Vendedor'+fl('vendedor')+'</th>'+
+    '<th onclick="ordenarPorCapturar(\'cliente\')">Cliente'+fl('cliente')+'</th>'+
+    '<th onclick="ordenarPorCapturar(\'folio\')">Folio'+fl('folio')+'</th>'+
+    '<th onclick="ordenarPorCapturar(\'monto\')">Monto'+fl('monto')+'</th>'+
+    '<th onclick="ordenarPorCapturar(\'tipo\')">Tipo'+fl('tipo')+'</th>'+
+    '<th onclick="ordenarPorCapturar(\'banco\')">Banco'+fl('banco')+'</th>'+
+    '<th onclick="ordenarPorCapturar(\'estado\')">Estado'+fl('estado')+'</th>'+
+    '<th>Acción</th></tr></thead><tbody>';
+  lista.forEach(function(p){
+    html += '<tr><td><b>'+p.vendedor+'</b></td><td>'+p.cliente+'</td><td>'+p.folio+'</td>'+
+      '<td style="font-weight:800;color:#15803d;">$'+(+p.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td>'+
+      '<td>'+p.tipo+'</td><td>'+p.banco+'</td>'+
+      '<td>'+(p.estado==='Abono'?'<span style="color:#ea580c;font-weight:700;">Abono</span>':'<span style="color:#15803d;font-weight:700;">Cobrada</span>')+'</td>'+
+      '<td><button type="button" onclick="marcarFacturaCapturada(\''+p.vendedor+'\',\''+p.hojaKey+'\',\''+p.folio+'\')" style="background:#15803d;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">✓ Ya lo capturé</button></td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+  cont.innerHTML = html;
+}
+function exportarPorCapturar(){
+  var q = (document.getElementById('capBusca')?document.getElementById('capBusca').value:'').trim().toLowerCase();
+  var lista = _porCapturarCache.filter(function(p){
+    if(!q) return true;
+    var texto = (p.vendedor+' '+p.cliente+' '+p.folio+' '+p.tipo+' '+p.monto+' '+p.banco+' '+p.estado).toLowerCase();
+    return texto.indexOf(q) >= 0;
+  });
+  if(!lista.length){ toast('No hay nada que exportar','warn'); return; }
+  var wb = new ExcelJS.Workbook();
+  var ws = wb.addWorksheet('Por Capturar');
+  ws.columns = [
+    {header:'Vendedor', key:'vendedor', width:22}, {header:'Cliente', key:'cliente', width:32},
+    {header:'Folio', key:'folio', width:16}, {header:'Monto', key:'monto', width:14},
+    {header:'Tipo', key:'tipo', width:16}, {header:'Banco', key:'banco', width:16},
+    {header:'Estado', key:'estado', width:14}
+  ];
+  ws.getRow(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF0F172A'}};
+  ws.getRow(1).font = {bold:true, color:{argb:'FFFFFFFF'}};
+  lista.forEach(function(p){ ws.addRow({vendedor:p.vendedor, cliente:p.cliente, folio:p.folio, monto:p.monto, tipo:p.tipo, banco:p.banco, estado:p.estado}); });
+  wb.xlsx.writeBuffer().then(function(buf){
+    var blob = new Blob([buf], {type:'application/octet-stream'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'PorCapturar_'+G.zona+'_'+new Date().toLocaleDateString('es-MX').replace(/\//g,'-')+'.xlsx';
+    a.click();
+    toast('✅ Excel descargado','ok');
+  });
 }
 function renderFueraDePlanilla(lista){
   var box = document.getElementById('avisoFueraPlanilla');
