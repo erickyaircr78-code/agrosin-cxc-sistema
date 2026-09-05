@@ -1093,22 +1093,24 @@ function verDetalle(r){
       '<div class="tdg"><div class="tdg-v ora">$'+Math.round(saldo/1000)+'K</div><div class="tdg-l">Saldo</div></div>'+
     '</div>'+
     '<div class="tbl">'+
-      '<div class="tbl-head" style="grid-template-columns:110px 1fr 90px 90px 80px 70px">'+
-        '<div class="th">Folio</div><div class="th">Nombre</div><div class="th">Venc.</div><div class="th">Total</div><div class="th">Saldo</div><div class="th">Estado</div>'+
+      '<div class="tbl-head" style="grid-template-columns:110px 1fr 90px 90px 80px 70px 70px">'+
+        '<div class="th">Folio</div><div class="th">Nombre</div><div class="th">Venc.</div><div class="th">Total</div><div class="th">Saldo</div><div class="th">Estado</div><div class="th">Microsip</div>'+
       '</div>';
   facts.forEach(function(f){
     var est = f.estado==='cobrada' ? '<span class="bdg bdg-v">Cobrado</span>'
       : f.estado==='abono' ? '<span class="bdg bdg-ab">Abono</span>'
       : '<span class="bdg bdg-a">Pend.</span>';
     var totalOriginal = f.total || f.saldo;
+    var microsipTag = f.capturadoEnMicrosip ? '<span style="color:#15803d;font-weight:800;">✓</span>' : '<span style="color:var(--gri);">—</span>';
     html +=
-      '<div class="tbl-row" style="grid-template-columns:110px 1fr 90px 90px 80px 70px">'+
+      '<div class="tbl-row" style="grid-template-columns:110px 1fr 90px 90px 80px 70px 70px">'+
         '<div class="td" style="font-family:monospace;font-size:10px;color:var(--gri)">'+f.folio+'</div>'+
         '<div class="td b" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.nombre+'</div>'+
         '<div class="td g">'+f.vencimiento+'</div>'+
         '<div class="td">$'+fmt(totalOriginal)+'</div>'+
         '<div class="td" style="color:var(--ora);font-weight:700">$'+fmt(f.saldo)+'</div>'+
         '<div>'+est+'</div>'+
+        '<div style="text-align:center;">'+microsipTag+'</div>'+
       '</div>';
   });
   html += '</div>';
@@ -1150,6 +1152,7 @@ var COLUMNAS_EXCEL = [
   {header:'A Cuenta',key:'A Cuenta',width:12}, {header:'Banco',key:'Banco',width:12},
   {header:'Tipo de Cobro',key:'Tipo de Cobro',width:14}, {header:'Estado',key:'Estado',width:12},
   {header:'Fecha Cobro',key:'Fecha Cobro',width:12}, {header:'Comprobante',key:'Comprobante',width:12},
+  {header:'Capturado en Microsip',key:'Capturado en Microsip',width:16},
   {header:'Descuento',key:'Descuento',width:12}, {header:'Devolución',key:'Devolución',width:12},
   {header:'Sdo. Favor Generado',key:'Sdo. Favor Generado',width:16}, {header:'Sdo. Favor Aplicado',key:'Sdo. Favor Aplicado',width:16},
   {header:'Observaciones',key:'Observaciones',width:16}
@@ -1164,6 +1167,7 @@ function filaDesdeFactura(h, vendor, f){
     'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
     'Banco':f.banco||'', 'Tipo de Cobro':f.tipo||'', 'Estado':f.estado||'pendiente',
     'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO',
+    'Capturado en Microsip':f.capturadoEnMicrosip?'SÍ':'NO',
     'Descuento':f.descuento||0, 'Devolución':f.devolucion||0,
     'Sdo. Favor Generado':f.favorGenerado||0, 'Sdo. Favor Aplicado':f.favorAplicado||0,
     'Observaciones':''
