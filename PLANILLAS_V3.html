@@ -296,6 +296,7 @@ firebase.auth().signInAnonymously().catch(function(e){ console.error('Error de a
 var G = { user:'', zona:'', pdfData:null };
 
 // ── CATÁLOGOS ────────────────────────────────────────────
+var _tabActivaPlanillas = 'tc-act'; // recuerda en cuál pestaña estabas, para no regresarte a "Planillas activas" cada vez que se actualiza algo
 var ZONAS = {
   CDMX:["ABRAHAM","ALFREDO","ANTONIO","CARLOS RONQUILLO","CASAUBON","CUAUHTEMOC","DANIEL M","ELVIRA","ESPERANZA","FELIX","FERNANDO GOMEZ","GERARDO HERNANDEZ","ISRAEL ODIN","JOSE LABASTIDA","JOSE RAMOS","JUAN OCAÑA","LUIS VENTURA","MANUEL TORRES","OLGA","OLGA ORTIZ","PATY GARCIA","RAYMUNDO LOPEZ","RICARDO BARRERA","ROBERTO","RODRIGO GONZALEZ","ROXANA"],
   MORELOS:["DAVID VEGA","EMMANUEL","ENRIQUE","ENRIQUE ACAP","EVA JOAQUIN","IRMA HDZ","ISRAEL","JOSUE","JUAN CARLOS","MARTIN REYES","RICARDO FIGUEROA","ROBERTO HDEZ","ULISES","VICTOR HUGO"],
@@ -430,7 +431,7 @@ function renderMain(results){
   ];
   tabData.forEach(function(t, i){
     var btn = document.createElement('button');
-    btn.className = 'tab'+(i===0?' act':'')+(t.cls?' '+t.cls:'');
+    btn.className = 'tab'+(t.id===_tabActivaPlanillas?' act':'')+(t.cls?' '+t.cls:'');
     btn.textContent = t.label;
     btn.addEventListener('click', (function(tid, b){ return function(){ setTab(tid, b); }; })(t.id, btn));
     tabsDiv.appendChild(btn);
@@ -438,7 +439,7 @@ function renderMain(results){
 
   // TAB ACTIVAS
   var tcAct = document.createElement('div');
-  tcAct.className = 'tc act';
+  tcAct.className = 'tc'+(_tabActivaPlanillas==='tc-act'?' act':'');
   tcAct.id = 'tc-act';
   if(!activas.length){
     tcAct.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Sin planillas activas</div><div class="empty-sub">Carga la primera planilla usando el botón de arriba</div></div>';
@@ -453,7 +454,7 @@ function renderMain(results){
 
   // TAB SIN PLANILLA
   var tcSin = document.createElement('div');
-  tcSin.className = 'tc';
+  tcSin.className = 'tc'+(_tabActivaPlanillas==='tc-sin'?' act':'');
   tcSin.id = 'tc-sin';
   var tbl = document.createElement('div');
   tbl.className = 'tbl';
@@ -478,7 +479,7 @@ function renderMain(results){
 
   // TAB POR CAPTURAR — vivo, sin depender de descargar Excel para saber qué falta meter a Microsip
   var tcCap = document.createElement('div');
-  tcCap.className = 'tc';
+  tcCap.className = 'tc'+(_tabActivaPlanillas==='tc-cap'?' act':'');
   tcCap.id = 'tc-cap';
   _porCapturarCache = [];
   results.forEach(function(r){
@@ -498,7 +499,7 @@ function renderMain(results){
 
   // TAB HISTORIAL
   var tcHist = document.createElement('div');
-  tcHist.className = 'tc';
+  tcHist.className = 'tc'+(_tabActivaPlanillas==='tc-hist'?' act':'');
   tcHist.id = 'tc-hist';
   tcHist.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Cargando historial…</div></div>';
 
@@ -635,6 +636,7 @@ function cargarHistorial(){
 
 // ── SET TAB ───────────────────────────────────────────────
 function setTab(id, el_btn){
+  _tabActivaPlanillas = id;
   document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('act'); });
   document.querySelectorAll('.tc').forEach(function(t){ t.classList.remove('act'); });
   el_btn.classList.add('act');
