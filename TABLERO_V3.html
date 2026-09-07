@@ -918,19 +918,20 @@ function renderLog(){
 
 /* ══════════════════ HISTORIAL SEMANAL ══════════════════ */
 function confirmarNuevaSemana(){
-  if(!confirm('¿Cerrar semana?\n\n1) Se guardará el historial de esta semana.\n2) Se borrarán los cobros, depósitos y entregas actuales (la cartera semanal NO se borra, la reemplazas tú el próximo lunes).\n\n⚠️ Asegúrate de haber descargado el Excel primero (botón "⬇ Excel" de arriba) — después de cerrar, esos datos ya no estarán disponibles en el tablero.')) return;
+  if(!confirm('¿Cerrar semana?\n\n1) Se guardará el historial de esta semana (sin contar lo de hoy, que ya es de la semana nueva).\n2) Se borrarán los cobros, depósitos y entregas de ANTES de hoy — lo que ya se haya cobrado hoy se conserva, porque ya pertenece a la semana que empieza.\n\n⚠️ Asegúrate de haber descargado el Excel primero (botón "⬇ Excel" de arriba) — después de cerrar, esos datos ya no estarán disponibles en el tablero.')) return;
+  var inicioHoy = new Date(); inicioHoy.setHours(0,0,0,0); inicioHoy = inicioHoy.getTime();
   var todos = cobrosTodos.concat(fueraPlanillaTodos);
   var vendedoresData = {};
   var totCartera=0, totCobrado=0, activos=0;
   Object.keys(ZONAS).forEach(function(z){
     ZONAS[z].forEach(function(nombre){
       var k = key(nombre);
-      var cob = dineroSeguro(todos, k, function(){ return true; }); // todo el histórico de la semana, ya confirmado
+      var cob = dineroSeguro(todos, k, function(ts){ return ts < inicioHoy; }); // solo lo de ANTES de hoy — hoy ya es de la semana nueva
       var cart = carteraSemanal[zkey(z, nombre)]; var total = cart ? cart.total : 0;
       var pctV = total>0 ? Math.min(100,(cob/total)*100) : 0;
       totCartera += total; totCobrado += cob;
       if(cob>0) activos++;
-      vendedoresData[nombre] = {zona:z, cartera:Math.round(total), cobrado:Math.round(cob), falta:Math.round(Math.max(0,total-cob)), pct:parseFloat(pctV.toFixed(1)), registros: todos.filter(function(c){return c.key===k;}).length};
+      vendedoresData[nombre] = {zona:z, cartera:Math.round(total), cobrado:Math.round(cob), falta:Math.round(Math.max(0,total-cob)), pct:parseFloat(pctV.toFixed(1)), registros: todos.filter(function(c){return c.key===k && c.ts<inicioHoy;}).length};
     });
   });
   var totalVend = Object.keys(vendedoresData).length;
@@ -944,9 +945,50 @@ function confirmarNuevaSemana(){
     vendedores: vendedoresData
   };
   db.ref('historialSemanal/'+semKey).set(histEntry).then(function(){
-    return Promise.all([db.ref('cobros').remove(), db.ref('cobrosFueraPlanilla').remove(), db.ref('depositos').remove(), db.ref('entregasOficina').remove(), db.ref('comprobantesFotos').remove()]);
+    // En vez de borrar el nodo completo, se lee cada colección y solo se borran los registros
+    // de ANTES de hoy — así lo que ya se cobró hoy (que ya es de la semana nueva) nunca se pierde.
+    return Promise.all([
+      db.ref('cobros').once('value'), db.ref('cobrosFueraPlanilla').once('value'),
+      db.ref('depositos').once('value'), db.ref('entregasOficina').once('value'),
+      db.ref('comprobantesFotos').once('value')
+    ]);
+  }).then(function(snaps){
+    var updates = {};
+    var cobrosSnap = snaps[0].val() || {};
+    Object.keys(cobrosSnap).forEach(function(zona){
+      Object.keys(cobrosSnap[zona]||{}).forEach(function(k){
+        Object.keys(cobrosSnap[zona][k]||{}).forEach(function(id){
+          if((cobrosSnap[zona][k][id].ts||0) < inicioHoy) updates['cobros/'+zona+'/'+k+'/'+id] = null;
+        });
+      });
+    });
+    var fpSnap = snaps[1].val() || {};
+    Object.keys(fpSnap).forEach(function(zona){
+      Object.keys(fpSnap[zona]||{}).forEach(function(k){
+        Object.keys(fpSnap[zona][k]||{}).forEach(function(id){
+          if((fpSnap[zona][k][id].ts||0) < inicioHoy) updates['cobrosFueraPlanilla/'+zona+'/'+k+'/'+id] = null;
+        });
+      });
+    });
+    var depSnap = snaps[2].val() || {};
+    Object.keys(depSnap).forEach(function(k){
+      Object.keys(depSnap[k]||{}).forEach(function(id){
+        if((depSnap[k][id].ts||0) < inicioHoy) updates['depositos/'+k+'/'+id] = null;
+      });
+    });
+    var entSnap = snaps[3].val() || {};
+    Object.keys(entSnap).forEach(function(k){
+      Object.keys(entSnap[k]||{}).forEach(function(id){
+        if((entSnap[k][id].ts||0) < inicioHoy) updates['entregasOficina/'+k+'/'+id] = null;
+      });
+    });
+    var fotoSnap = snaps[4].val() || {};
+    Object.keys(fotoSnap).forEach(function(id){
+      if((fotoSnap[id].ts||0) < inicioHoy) updates['comprobantesFotos/'+id] = null;
+    });
+    return db.ref().update(updates);
   }).then(function(){
-    toast('✅ Semana guardada en historial','ok'); renderHistorial();
+    toast('✅ Semana guardada en historial — lo de hoy se conservó','ok'); renderHistorial();
     setTimeout(function(){ location.reload(); }, 1500);
   }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
