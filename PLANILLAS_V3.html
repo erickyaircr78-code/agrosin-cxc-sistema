@@ -1353,9 +1353,18 @@ function cargarFueraDePlanilla(){
   refFp.on('value', cbFp);
   _fpListenerActual = {ref: refFp, cb: cbFp};
 }
-function marcarCapturado(vendedorKey, id){
+function marcarCapturado(vendedorKey, id, clienteNombre){
   db.ref('cobrosFueraPlanilla/'+G.zona+'/'+vendedorKey+'/'+id+'/capturadoEnMicrosip').set(true)
-    .then(function(){ toast('✓ Marcado como capturado','ok'); })
+    .then(function(){ mostrarAvisoDeshacer(clienteNombre||'este cobro', function(){ deshacerCapturaFueraDePlanilla(vendedorKey, id); }); })
+    .catch(function(e){ toast('Error: '+e.message,'err'); });
+}
+function deshacerCapturaFueraDePlanilla(vendedorKey, id){
+  db.ref('cobrosFueraPlanilla/'+G.zona+'/'+vendedorKey+'/'+id+'/capturadoEnMicrosip').set(false)
+    .then(function(){
+      var banner = document.getElementById('avisoDeshacerCaptura');
+      if(banner) banner.remove();
+      toast('↩ Se deshizo — vuelve a aparecer en la lista','ok');
+    })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
@@ -1363,11 +1372,11 @@ function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
   var item = _porCapturarCache.find(function(p){ return p.vendedor===vendedorNombre && p.folio===folio; });
   var clienteNombre = item ? item.cliente : folio;
   db.ref('planillas/'+G.zona+'/'+k+'/'+hojaKey+'/facturas/'+folio+'/capturadoEnMicrosip').set(true)
-    .then(function(){ mostrarAvisoDeshacer(clienteNombre, vendedorNombre, hojaKey, folio); })
+    .then(function(){ mostrarAvisoDeshacer(clienteNombre, function(){ deshacerCaptura(vendedorNombre, hojaKey, folio); }); })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 var _timeoutDeshacer = null;
-function mostrarAvisoDeshacer(clienteNombre, vendedorNombre, hojaKey, folio){
+function mostrarAvisoDeshacer(clienteNombre, funcionDeshacer){
   var viejo = document.getElementById('avisoDeshacerCaptura');
   if(viejo) viejo.remove();
   if(_timeoutDeshacer) clearTimeout(_timeoutDeshacer);
@@ -1378,7 +1387,7 @@ function mostrarAvisoDeshacer(clienteNombre, vendedorNombre, hojaKey, folio){
   banner.innerHTML =
     '<div>✓ Marcado como capturado: <b style="color:#4ade80;">'+clienteNombre+'</b></div>'+
     '<button type="button" style="background:none;border:none;color:#93c5fd;font-weight:800;font-size:13px;cursor:pointer;text-decoration:underline;white-space:nowrap;">Deshacer</button>';
-  banner.querySelector('button').onclick = function(){ deshacerCaptura(vendedorNombre, hojaKey, folio); };
+  banner.querySelector('button').onclick = funcionDeshacer;
   document.body.appendChild(banner);
 
   _timeoutDeshacer = setTimeout(function(){ if(banner.parentNode) banner.remove(); }, 8000);
@@ -1538,7 +1547,7 @@ function renderFueraDePlanilla(lista){
       '<div class="fp-sub">Estos pagos no venían en ninguna planilla activada, un cliente adelantó el pago.</div>'+
       '<table class="fp-table"><thead><tr><th>Fecha</th><th>Vendedor</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Monto</th><th>Acción</th></tr></thead><tbody>'+
       lista.slice(0,30).map(function(c){
-        return '<tr><td>'+c.fecha+'</td><td>'+c.vendor+'</td><td>'+c.cliente+'</td><td>'+c.folio+'</td><td>'+c.tipo+'</td><td style="font-weight:800;color:#15803d;">$'+(+c.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td><td><button type="button" onclick="marcarCapturado(\''+c.vendedorKey+'\',\''+c.id+'\')" style="background:#15803d;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;">✓ Ya lo capturé</button></td></tr>';
+        return '<tr><td>'+c.fecha+'</td><td>'+c.vendor+'</td><td>'+c.cliente+'</td><td>'+c.folio+'</td><td>'+c.tipo+'</td><td style="font-weight:800;color:#15803d;">$'+(+c.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td><td><button type="button" onclick="marcarCapturado(\''+c.vendedorKey+'\',\''+c.id+'\',\''+String(c.cliente).replace(/'/g,"\\'")+'\')" style="background:#15803d;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;">✓ Ya lo capturé</button></td></tr>';
       }).join('')+
       '</tbody></table>'+
     '</div>';
