@@ -193,7 +193,6 @@ input[type=file]{display:none;}
     <button type="button" class="btnTop" style="background:#1a56db;border-color:#1a56db;color:#fff;" onclick="exportarGeneral()">⬇ Excel</button>
     <button type="button" class="btnTop" onclick="confirmarNuevaSemana()">↺ Cerrar semana</button>
     <button type="button" class="btnTopRojo btnTop" onclick="abrirModalBorrar()">🗑 Borrar pruebas</button>
-    <button type="button" class="btnTop" style="background:#7c3aed;color:#fff;border:none;" onclick="restaurarMovimientosOdin()">🔧 Restaurar 3 mov. Odin (7-sep)</button>
   </div>
 </div>
 
@@ -918,23 +917,6 @@ function renderLog(){
 }
 
 /* ══════════════════ HISTORIAL SEMANAL ══════════════════ */
-/* ── TEMPORAL: restaurar los 3 movimientos de Israel Odin que se perdieron el 7-sep al cerrar semana ──
-   Solo reconstruye el RECIBO (para Historial/Tablero) — NO toca el saldo de la factura, porque ese ya está correcto. */
-function restaurarMovimientosOdin(){
-  if(!confirm('¿Restaurar los 3 movimientos de Israel Odin del 7-sep?\n\nEsto solo reconstruye el recibo (para que aparezca en su Historial) — no vuelve a tocar el saldo de sus facturas, porque ese ya está bien.\n\nSolo debe usarse UNA vez.')) return;
-  var zona = 'CDMX', vendorNombre = 'ISRAEL ODIN', vendorKey = key(vendorNombre);
-  var registros = [
-    {cliente:'ISAIAS ALEJANDRO VALLE GONZALEZ', folio:'AG0059382', tipo:'Transferencia', monto:4041.97, banco:'INBURSA', estado:'confirmado', ts:new Date('2026-09-07T08:23:00').getTime()},
-    {cliente:'BRENDA VALLE VILLEGAS', folio:'AG0062456', tipo:'Efectivo', monto:2408.24, banco:null, estado:'pendiente', ts:new Date('2026-09-07T11:20:00').getTime()},
-    {cliente:'SILVIA DE JESUS ALCANTARA', folio:'AG0063158', tipo:'Efectivo', monto:3300.93, banco:null, estado:'pendiente', ts:new Date('2026-09-07T12:16:00').getTime()}
-  ];
-  var promesas = registros.map(function(r){
-    return db.ref('cobros/'+zona+'/'+vendorKey).push(Object.assign({key:vendorKey, vendor:vendorNombre, zona:zona, fueraDePlanilla:false}, r));
-  });
-  Promise.all(promesas).then(function(){
-    toast('✅ Se restauraron los 3 movimientos de Israel Odin','ok');
-  }).catch(function(e){ toast('Error: '+e.message,'err'); });
-}
 function confirmarNuevaSemana(){
   if(!confirm('¿Cerrar semana?\n\n1) Se guardará el historial de esta semana (sin contar lo de hoy, que ya es de la semana nueva).\n2) Se borrarán los cobros, depósitos y entregas de ANTES de hoy — lo que ya se haya cobrado hoy se conserva, porque ya pertenece a la semana que empieza.\n\n⚠️ Asegúrate de haber descargado el Excel primero (botón "⬇ Excel" de arriba) — después de cerrar, esos datos ya no estarán disponibles en el tablero.')) return;
   var inicioHoy = new Date(); inicioHoy.setHours(0,0,0,0); inicioHoy = inicioHoy.getTime();
