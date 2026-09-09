@@ -593,30 +593,49 @@ function cargarVendedoresDeZona(){
 
 /* ── Estado de cuenta / avance semanal — misma definición de "dinero seguro" que el Tablero ── */
 var misCobrosRegulares = [], misCobrosFuera = [], misDepositosSemana = [], misEntregasSemana = [], miCartera = null;
+function calcularInicioHistorial(){
+  // Por default, alcanza hasta el sábado de la semana pasada — el mismo alcance que ya permite
+  // el selector de "¿Cuándo pagó?", para que un pago fechado ahí nunca desaparezca por cambio de semana.
+  var hoyCorte = new Date(); hoyCorte.setHours(0,0,0,0);
+  var diaSemanaCorte = hoyCorte.getDay();
+  var indexHoyCorte = diaSemanaCorte===0 ? 6 : diaSemanaCorte-1;
+  var lunesEstaSemanaCorte = new Date(hoyCorte); lunesEstaSemanaCorte.setDate(hoyCorte.getDate()-indexHoyCorte);
+  var porDias = new Date(lunesEstaSemanaCorte); porDias.setDate(lunesEstaSemanaCorte.getDate()-2); porDias = porDias.getTime();
+  // Pero si la planilla actual lleva MÁS tiempo abierta que eso, se usa la fecha en que se activó —
+  // así el Historial nunca "pierde" nada mientras esa planilla siga abierta, sin importar cuántos días lleve.
+  if(planillaActiva && planillaActiva.ts){
+    var desdePlanilla = Number(planillaActiva.ts);
+    if(!isNaN(desdePlanilla) && desdePlanilla < porDias) return desdePlanilla;
+  }
+  return porDias;
+}
 function escucharAvance(){
-  var inicioSem = inicioSemana();
   db.ref('carteraSemanal/'+zkey(miZona, miNombre)).on('value', function(snap){
     miCartera = snap.val();
     renderAvance();
   });
   db.ref('cobros/'+miZona+'/'+miKey).on('value', function(snap){
+    var inicioSem = calcularInicioHistorial();
     var arr = []; snap.forEach(function(c){ arr.push(Object.assign({id:c.key, fueraDePlanilla:false}, c.val())); });
     misCobrosRegulares = arr.filter(function(c){ return c.ts >= inicioSem; });
     renderAvance();
     refrescarHistorialSiVisible();
   });
   db.ref('cobrosFueraPlanilla/'+miZona+'/'+miKey).on('value', function(snap){
+    var inicioSem = calcularInicioHistorial();
     var arr = []; snap.forEach(function(c){ arr.push(Object.assign({id:c.key, fueraDePlanilla:true}, c.val())); });
     misCobrosFuera = arr.filter(function(c){ return c.ts >= inicioSem; });
     renderAvance();
     refrescarHistorialSiVisible();
   });
   db.ref('depositos/'+miKey).on('value', function(snap){
+    var inicioSem = calcularInicioHistorial();
     var arr = []; snap.forEach(function(d){ arr.push(d.val()); });
     misDepositosSemana = arr.filter(function(d){ return d.ts >= inicioSem; });
     renderAvance();
   });
   db.ref('entregasOficina/'+miKey).on('value', function(snap){
+    var inicioSem = calcularInicioHistorial();
     var arr = []; snap.forEach(function(e){ arr.push(e.val()); });
     misEntregasSemana = arr.filter(function(e){ return e.ts >= inicioSem; });
     renderAvance();
@@ -1288,8 +1307,15 @@ function registrarCobro(){
   var monto, descuento, descuentoPct, saldoDespues, favorAplicado = 0, favorGenerado = 0;
   if(modoPago === 'completo'){
     descuentoPct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
-    descuento = subtotal * (descuentoPct/100);
-    var trasDescuento = subtotal - descuento;
+    // El descuento se calcula sobre el TOTAL ORIGINAL de la factura, no sobre lo que queda de saldo —
+    // así, si ya hubo abonos previos (con cualquier forma de pago) sin descuento, el descuento sigue
+    // siendo el correcto sobre el total completo, y no se vuelve a aplicar de más sobre lo que resta.
+    var totalOriginal = facturaSel.total || saldoAntes; // por seguridad, si alguna factura vieja no trae total
+    var yaAcumulado = facturaSel.montoCobrado || 0; // lo que ya se había pagado antes en abonos previos
+    var totalNetoPorDevolucion = Math.max(0, totalOriginal - devolucion);
+    var totalConDescuento = totalNetoPorDevolucion * (1 - descuentoPct/100);
+    descuento = totalNetoPorDevolucion - totalConDescuento;
+    var trasDescuento = Math.max(0, totalConDescuento - yaAcumulado);
     favorAplicado = aplicarSaldoFavor ? Math.min(saldoAFavorDisponible, trasDescuento) : 0;
     monto = trasDescuento - favorAplicado;
     saldoDespues = 0; // pago completo siempre liquida la factura

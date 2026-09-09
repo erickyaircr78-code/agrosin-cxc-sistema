@@ -776,12 +776,19 @@ function extraerFacturas(texto){
     vistos[fol] = true;
     // Limpiar nombre: quitar números iniciales (clave pegada)
     var nombre = m[3].trim().replace(/^\d+\s+/, '').trim();
+    var totalNum = parseFloat(m[7].replace(/,/g,''));
+    var saldoNum = parseFloat(m[8].replace(/,/g,''));
+    // Si el PDF ya trae el Saldo menor que el Total, es que Microsip ya reflejaba un abono previo
+    // (de una semana o planilla anterior) — se guarda ese monto ya acumulado, para que si después
+    // se liquida con descuento, el descuento se calcule sobre el Total completo y no de más.
+    var montoYaAcumulado = Math.max(0, totalNum - saldoNum);
     facturas.push({
       folio: fol, clave: m[2], nombre: nombre.substring(0,55),
       fecha: m[4], vencimiento: m[5], dias: parseInt(m[6]),
-      total: parseFloat(m[7].replace(/,/g,'')),
-      saldo: parseFloat(m[8].replace(/,/g,'')),
-      estado: 'pendiente'
+      total: totalNum,
+      saldo: saldoNum,
+      montoCobrado: montoYaAcumulado,
+      estado: montoYaAcumulado > 0 ? 'abono' : 'pendiente'
     });
   }
 
@@ -1042,7 +1049,11 @@ function activar(){
   var k = key(vendedor);
   var ts = Date.now();
   var facts = {};
-  data.facturas.forEach(function(f, idx){ facts[f.folio] = {folio:f.folio,clave:f.clave,nombre:f.nombre,fecha:f.fecha,vencimiento:f.vencimiento,dias:f.dias,total:f.total,saldo:f.saldo,estado:'pendiente',idx:idx}; });
+  data.facturas.forEach(function(f, idx){
+    var mc = (f.montoCobrado!==undefined && f.montoCobrado!==null) ? f.montoCobrado : Math.max(0, (f.total||0)-(f.saldo||0));
+    var est = f.estado || (mc>0 ? 'abono' : 'pendiente');
+    facts[f.folio] = {folio:f.folio,clave:f.clave,nombre:f.nombre,fecha:f.fecha,vencimiento:f.vencimiento,dias:f.dias,total:f.total,saldo:f.saldo,montoCobrado:mc,estado:est,idx:idx};
+  });
 
   var planilla = {
     vendedor:vendedor, folio_hoja:data.folioHoja, fecha:data.fecha,
