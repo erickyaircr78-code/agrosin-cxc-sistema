@@ -317,11 +317,11 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 
         <div class="tarjeta-titulo" style="margin-top:6px;">¿Pagó completo o es abono?</div>
         <div class="tipo-grid" style="grid-template-columns:1fr 1fr;">
-          <div class="tipo-opt act" id="modoCompleto" onclick="elegirModo('completo')">✅ Pago completo</div>
+          <div class="tipo-opt" id="modoCompleto" onclick="elegirModo('completo')">✅ Pago completo</div>
           <div class="tipo-opt" id="modoAbono" onclick="elegirModo('abono')">💵 Otro monto (menos o de más)</div>
         </div>
 
-        <div class="campo" id="bloqueDescuentoPct">
+        <div class="campo" id="bloqueDescuentoPct" style="display:none;">
           <label>Descuento del cliente</label>
           <div id="infoDescuentoPct" style="padding:15px 14px;border:2px solid var(--borde);border-radius:12px;background:#f8fafc;font-weight:800;font-size:14px;color:var(--gris);">Consultando…</div>
           <div class="toggle-desc" id="toggleAplicarDescuento" style="display:none;" onclick="toggleAplicarDescuento()">
@@ -954,8 +954,14 @@ function mostrarFormularioCobro(){
   fotoComprobanteBase64 = null;
   document.getElementById('previewComprobante').style.display = 'none';
   document.getElementById('inpFotoComprobante').value = '';
-  elegirTipo('Efectivo');
-  elegirModo('completo');
+  document.querySelectorAll('#tipoGrid .tipo-opt').forEach(function(el){ el.classList.remove('act'); }); // ninguno marcado, hay que elegir a propósito
+  document.getElementById('bloqueBanco').style.display = 'none';
+  document.getElementById('bloqueChequeTipo').style.display = 'none';
+  modoPago = null; // ninguno marcado por default, hay que elegir a propósito
+  document.getElementById('modoCompleto').classList.remove('act');
+  document.getElementById('modoAbono').classList.remove('act');
+  document.getElementById('bloqueDescuentoPct').style.display = 'none';
+  document.getElementById('bloqueMontoAbono').style.display = 'none';
   recalcular();
   buscarDescuentoFijoDelCliente();
   buscarSaldoFavorDelCliente();
@@ -1116,7 +1122,7 @@ function elegirChequePosfechado(esPosfechado){
 }
 
 /* ── Modo de pago: completo (habilita % descuento) o abono (sin descuento) ── */
-var modoPago = 'completo';
+var modoPago = null; // nunca arranca preseleccionado — el vendedor tiene que elegir a propósito
 function elegirModo(m){
   modoPago = m;
   document.getElementById('modoCompleto').classList.toggle('act', m==='completo');
@@ -1286,6 +1292,7 @@ function recalcular(){
 function mostrarConfirmacionRecibo(){
   if(!facturaSel) return;
   if(!tipoActual){ toast('Antes de continuar, toca cómo te pagó el cliente','err'); return; }
+  if(!modoPago){ toast('Antes de continuar, indica si fue pago completo o abono','err'); return; }
   var calcRow = document.querySelector('#calcBox .calc-row.total');
   var montoTxt = calcRow ? calcRow.children[1].textContent : '—';
   var resumen = document.getElementById('resumenConfirmarRecibo');
@@ -1302,6 +1309,7 @@ function confirmarYRegistrarCobro(){
 function registrarCobro(){
   if(!facturaSel){ toast('Selecciona una factura primero','err'); return; }
   if(!tipoActual){ toast('Antes de continuar, toca cómo te pagó el cliente','err'); return; }
+  if(!modoPago){ toast('Antes de continuar, indica si fue pago completo o abono','err'); return; }
   if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco/terminal','err'); return; }
 
   var saldoAntes = facturaSel.saldo;
