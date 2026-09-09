@@ -274,7 +274,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
 
         <div class="tarjeta-titulo">💳 ¿Cómo pagó?</div>
         <div class="tipo-grid" id="tipoGrid">
-          <div class="tipo-opt act" data-tipo="Efectivo" onclick="elegirTipo('Efectivo')">💵 Efectivo</div>
+          <div class="tipo-opt" data-tipo="Efectivo" onclick="elegirTipo('Efectivo')">💵 Efectivo</div>
           <div class="tipo-opt" data-tipo="Transferencia" onclick="elegirTipo('Transferencia')">🏦 Transferencia</div>
           <div class="tipo-opt" data-tipo="Cheque" onclick="elegirTipo('Cheque')">📝 Cheque</div>
           <div class="tipo-opt" data-tipo="Deposito" onclick="elegirTipo('Deposito')">🏧 Depósito</div>
@@ -570,7 +570,7 @@ var miZona = null, miNombre = null, miKey = null;
 var planillaActiva = null;   // {ts, facturas:{...}}
 var facturaSel = null;       // factura elegida para cobrar (o null si es fuera de planilla)
 var esFueraDePlanilla = false;
-var tipoActual = 'Efectivo';
+var tipoActual = null; // nunca arranca preseleccionado — el vendedor tiene que elegir a propósito
 var ultimoTicket = null;
 var pendientes = [], seleccion = {}, entregasPendientes = [], rutaActual = 'banco';
 var PERSONAL_OFICINA = ['LUPE','CARI','KAREN','JENNIFER','NANCY','SAMANTA','CLAUDIA','MIRI','MEMO'];
@@ -932,6 +932,8 @@ function mostrarFormularioCobro(){
     favorPrevioHtml+
     '<div class="fs-cambiar" onclick="cancelarSeleccion()">← elegir otra</div>';
   diaPagoOffset = 0; // siempre arranca en "hoy" al elegir una factura nueva
+  tipoActual = null; // nunca se queda pegado del cliente anterior — hay que elegir de nuevo cada vez
+  document.querySelectorAll('#tipoGrid .tipo-opt').forEach(function(el){ el.classList.remove('act'); });
   chequePosfechado = false;
   renderDiasPago();
   document.getElementById('inpMonto').value = '';
@@ -1283,6 +1285,7 @@ function recalcular(){
 /* ── Registrar el cobro ── */
 function mostrarConfirmacionRecibo(){
   if(!facturaSel) return;
+  if(!tipoActual){ toast('Antes de continuar, toca cómo te pagó el cliente','err'); return; }
   var calcRow = document.querySelector('#calcBox .calc-row.total');
   var montoTxt = calcRow ? calcRow.children[1].textContent : '—';
   var resumen = document.getElementById('resumenConfirmarRecibo');
@@ -1298,6 +1301,7 @@ function confirmarYRegistrarCobro(){
 }
 function registrarCobro(){
   if(!facturaSel){ toast('Selecciona una factura primero','err'); return; }
+  if(!tipoActual){ toast('Antes de continuar, toca cómo te pagó el cliente','err'); return; }
   if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco/terminal','err'); return; }
 
   var saldoAntes = facturaSel.saldo;
