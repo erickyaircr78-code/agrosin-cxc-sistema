@@ -1468,11 +1468,13 @@ function repararCapturadoDesdeMicrosip(){
         ]).then(function(resultados){
           var planillasSnap = resultados[0].val() || {};
           var cobrosSnap = resultados[1].val() || {};
-          // Folios que SÍ tienen un cobro real hecho por el vendedor desde la app
-          var foliosConCobroReal = {};
+          // Combinaciones de "planilla + folio" que SÍ tienen un cobro real hecho por el vendedor
+          // desde la app — se usa planillaTs+folio juntos, porque el mismo folio puede repetirse
+          // en planillas distintas (semanas distintas) con historias completamente separadas.
+          var planillaFolioConCobroReal = {};
           Object.keys(cobrosSnap).forEach(function(cobroId){
             var c = cobrosSnap[cobroId];
-            if(c.folio) foliosConCobroReal[c.folio] = true;
+            if(c.folio && c.planillaTs) planillaFolioConCobroReal[c.planillaTs+'||'+c.folio] = true;
           });
           var updates = {};
           Object.keys(planillasSnap).forEach(function(ts){
@@ -1480,10 +1482,10 @@ function repararCapturadoDesdeMicrosip(){
             Object.keys(facturas).forEach(function(folio){
               var f = facturas[folio];
               var esAbonoOCobrada = (f.estado==='abono' || f.estado==='cobrada');
-              // Si tiene abono/cobrada, no está marcado como capturado, y NUNCA hubo un cobro real
-              // hecho desde la app para ese folio — es porque ese abono ya venía de Microsip desde
-              // que se subió el PDF, y no es un pendiente nuevo que Lupe tenga que volver a meter.
-              if(esAbonoOCobrada && !f.capturadoEnMicrosip && !foliosConCobroReal[folio]){
+              // Si tiene abono/cobrada, no está marcado como capturado, y en ESTA planilla específica
+              // nunca hubo un cobro real hecho desde la app para ese folio — es porque ese abono ya
+              // venía de Microsip desde que se subió el PDF, y no es un pendiente nuevo que capturar.
+              if(esAbonoOCobrada && !f.capturadoEnMicrosip && !planillaFolioConCobroReal[ts+'||'+folio]){
                 updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/capturadoEnMicrosip'] = true;
                 totalReparadas++;
               }
