@@ -724,7 +724,23 @@ function renderHistorial(){
 function verFoto(id){
   db.ref('comprobantesFotos/'+id).once('value').then(function(snap){
     var d = snap.val();
-    if(!d || !d.foto){ toast('No se encontró la foto (puede que ya se haya borrado)','warn'); return; }
+    if(!d || !d.foto){
+      toast('No se encontró la foto (puede que ya se haya borrado)','warn');
+      // Se autocorrige el aviso falso de "tiene foto", para que la próxima vez ya muestre
+      // "Agregar comprobante" en vez de un "Ver foto" que lleva a nada.
+      var cobro = misCobrosRegulares.find(function(c){ return c.id===id; }) || misCobrosFuera.find(function(c){ return c.id===id; });
+      if(cobro){
+        var updates = {};
+        var pathCobro = cobro.fueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+id+'/tieneFoto' : 'cobros/'+miZona+'/'+miKey+'/'+id+'/tieneFoto';
+        updates[pathCobro] = false;
+        if(!cobro.fueraDePlanilla && cobro.planillaTs && cobro.folio){
+          updates['planillas/'+miZona+'/'+miKey+'/'+cobro.planillaTs+'/facturas/'+cobro.folio+'/tieneFoto'] = false;
+          updates['planillas/'+miZona+'/'+miKey+'/'+cobro.planillaTs+'/facturas/'+cobro.folio+'/fotoId'] = null;
+        }
+        db.ref().update(updates);
+      }
+      return;
+    }
     var overlay = document.createElement('div');
     overlay.style = 'position:fixed;inset:0;background:rgba(15,23,25,.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;';
     overlay.innerHTML =
