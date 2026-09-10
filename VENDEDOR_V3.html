@@ -234,6 +234,7 @@ body{font-family:'Nunito',sans-serif;background:var(--fondo);min-height:100vh;di
         </div>
         <div id="resultadosBusqueda"></div>
         <div id="sinResultados" style="display:none;"></div>
+        <div id="resumenPlanillaInfo" style="display:none;margin-top:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:11px;color:var(--gris);text-align:center;font-weight:700;"></div>
         <button type="button" class="btn-secundario" onclick="abrirCobroFueraPlanilla()">➕ Cobro fuera de planilla (cliente adelantó un pago)</button>
       </div>
 
@@ -841,6 +842,7 @@ function corregirCobro(id, esFueraDePlanilla){
         var updatesFactura = {};
         updatesFactura[rutaFactura+'/saldo'] = c.saldoAntes;
         updatesFactura[rutaFactura+'/estado'] = estadoRestaurado;
+        updatesFactura[rutaFactura+'/capturadoEnMicrosip'] = c.capturadoEnMicrosipAntes || false;
         db.ref().update(updatesFactura).then(finalizarBorrado);
       } else { finalizarBorrado(); }
     });
@@ -890,9 +892,17 @@ function cargarPlanillaActiva(){
         document.getElementById('resultadosBusqueda').innerHTML = '';
         document.getElementById('sinResultados').style.display = 'none';
         document.getElementById('avisoSinPlanilla').style.display = '';
+        document.getElementById('resumenPlanillaInfo').style.display = 'none';
         toast('No tienes una planilla activa hoy','warn');
       } else {
         document.getElementById('avisoSinPlanilla').style.display = 'none';
+        // Resumen informativo: número de facturas y el total, tal como debe salir en el PDF de Microsip —
+        // solo para confirmar de un vistazo que sí es el PDF completo, sin tener que compararlo a mano.
+        var listaFacturas = Object.values(planillaActiva.facturas);
+        var totalSuma = listaFacturas.reduce(function(s,f){ return s+(f.total||0); },0);
+        var resumenEl = document.getElementById('resumenPlanillaInfo');
+        resumenEl.textContent = '📄 '+listaFacturas.length+' facturas · Total: '+fmt(totalSuma)+' (según el PDF)';
+        resumenEl.style.display = '';
         buscarFactura(); // pinta la lista completa de una vez
       }
     }).catch(function(e){ toast('Error al cargar planilla: '+e.message,'err'); });
@@ -1413,6 +1423,7 @@ function registrarCobro(){
   var subtotal = Math.max(0, saldoAntes - devolucion);
 
   var monto, descuento, descuentoPct, saldoDespues, favorAplicado = 0, favorGenerado = 0;
+  var capturadoEnMicrosipAntes = (facturaSel.capturadoEnMicrosip!==undefined) ? facturaSel.capturadoEnMicrosip : false;
   if(modoPago === 'completo'){
     descuentoPct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
     // El descuento se calcula sobre el TOTAL ORIGINAL de la factura, no sobre lo que queda de saldo —
@@ -1494,7 +1505,7 @@ function registrarCobro(){
     favorAplicadoAOtraFactura: favorAplicadoAOtra, otraFacturaFolio: (otraFacturaEncontrada || otraFueraDePlanilla) ? folioOtraFactura : null,
     favorAplicadoHistorico: facturaSel.favorAplicado || 0,
     otraFacturaFueraDePlanilla: otraFueraDePlanilla,
-    saldoAntes: saldoAntes, saldoDespues: saldoDespues,
+    saldoAntes: saldoAntes, saldoDespues: saldoDespues, capturadoEnMicrosipAntes: capturadoEnMicrosipAntes,
     ts: ahora.getTime(), fecha: fecha, folioRecibo: folioRecibo,
     chequePosfechado: (tipoActual==='Cheque' && chequePosfechado) ? true : null,
     estado: tipoActual==='Efectivo' ? 'pendiente' : 'confirmado'
