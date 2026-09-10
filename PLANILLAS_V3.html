@@ -1445,13 +1445,17 @@ function repararFotosAntiguas(){
               Object.keys(facturas).forEach(function(folio){
                 var f = facturas[folio];
                 var fotoIdActualEsValido = f.fotoId && fotosReales[f.fotoId] && fotosReales[f.fotoId].foto;
-                if(f.tieneFoto && !fotoIdActualEsValido){
+                // Se revisa cualquier factura donde el fotoId puesto NO sirva (sin importar qué diga "tiene foto"),
+                // o donde diga "tiene foto" pero nunca se le puso ningún fotoId — el ícono solo mira fotoId,
+                // así que ese es el dato que de verdad hay que dejar limpio.
+                var necesitaRevision = (f.fotoId && !fotoIdActualEsValido) || (f.tieneFoto && !f.fotoId);
+                if(necesitaRevision){
                   if(folioAFotoId[folio]){
                     updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
+                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/tieneFoto'] = true;
                     totalReparadas++;
                   } else {
-                    // El aviso decía "tiene foto", pero de verdad nunca se guardó — se corrige el aviso Y se borra
-                    // el fotoId inválido (si no se borra este también, el ícono se sigue mostrando por su cuenta)
+                    // Nunca hubo una foto real que conectar — se borra el fotoId inválido y se apaga el aviso
                     updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/tieneFoto'] = false;
                     updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = null;
                     totalDescartadas++;
