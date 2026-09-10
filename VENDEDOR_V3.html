@@ -707,7 +707,7 @@ function renderHistorial(){
       html += '<div style="font-size:11px;font-weight:800;color:var(--gris);text-transform:uppercase;margin:14px 0 8px 2px;">'+etiquetaDia+'</div>';
     }
     var hora = new Date(c.ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-    var fotoTag = c.tieneFoto ? '<span style="display:inline-block;margin-top:4px;font-size:9px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:8px;font-weight:700;">📷 Con foto</span>' : '';
+    var fotoTag = c.tieneFoto ? ' <span style="cursor:pointer;display:inline-block;margin-top:4px;font-size:9px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:8px;font-weight:700;" onclick="verFoto(\''+c.id+'\')">📷 Ver foto</span>' : '';
     var btnCorregir = puedeCorregirse(c) ? '<button type="button" onclick="corregirCobro(\''+c.id+'\','+c.fueraDePlanilla+')" style="margin-top:6px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:800;">✕ Corregir</button>' : '';
     html += '<div class="tarjeta" style="padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">'+
       '<div><div style="font-size:13px;font-weight:800;color:var(--texto);">'+(c.cliente||'—')+'</div>'+
@@ -717,6 +717,21 @@ function renderHistorial(){
   cont.innerHTML = html;
 }
 
+function verFoto(id){
+  db.ref('comprobantesFotos/'+id).once('value').then(function(snap){
+    var d = snap.val();
+    if(!d || !d.foto){ toast('No se encontró la foto (puede que ya se haya borrado)','warn'); return; }
+    var overlay = document.createElement('div');
+    overlay.style = 'position:fixed;inset:0;background:rgba(15,23,25,.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;';
+    overlay.innerHTML =
+      '<img src="'+d.foto+'" style="max-width:90%;max-height:75vh;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);">'+
+      '<div style="color:#fff;font-size:12px;font-weight:700;">'+new Date(d.ts).toLocaleString('es-MX')+'</div>'+
+      '<button type="button" style="padding:10px 24px;background:#fff;color:#0f1923;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Cerrar</button>';
+    overlay.querySelector('button').onclick = function(){ overlay.remove(); };
+    overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }).catch(function(e){ toast('Error al cargar la foto: '+e.message,'err'); });
+}
 function corregirCobro(id, esFueraDePlanilla){
   var todos = misCobrosRegulares.concat(misCobrosFuera);
   var c = todos.find(function(x){ return x.id===id; });
