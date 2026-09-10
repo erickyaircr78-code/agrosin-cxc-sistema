@@ -1444,7 +1444,8 @@ function repararFotosAntiguas(){
               var facturas = (planillasSnap[ts]||{}).facturas || {};
               Object.keys(facturas).forEach(function(folio){
                 var f = facturas[folio];
-                if(f.tieneFoto && !f.fotoId){
+                var fotoIdActualEsValido = f.fotoId && fotosReales[f.fotoId] && fotosReales[f.fotoId].foto;
+                if(f.tieneFoto && !fotoIdActualEsValido){
                   if(folioAFotoId[folio]){
                     updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
                     totalReparadas++;
