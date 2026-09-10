@@ -483,7 +483,12 @@ function renderMain(results){
   var tcCap = document.createElement('div');
   tcCap.className = 'tc'+(_tabActivaPlanillas==='tc-cap'?' act':'');
   tcCap.id = 'tc-cap';
+  _secuenciaPorCapturar++;
+  var miSecuencia = _secuenciaPorCapturar;
   cargarTodoParaPorCapturar(function(todasLasFacturas){
+    // Si mientras esta carga estaba en camino ya se pidió otra más reciente, esta se descarta —
+    // así nunca "revive" por accidente algo que Lupe ya marcó como capturado mientras tanto.
+    if(miSecuencia !== _secuenciaPorCapturar) return;
     _porCapturarCache = todasLasFacturas;
     dibujarTablaPorCapturar();
   });
@@ -493,7 +498,8 @@ function renderMain(results){
     (ZONAS[G.zona]||[]).map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('')+
     '</select>'+
     '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button>'+
-    '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button></div>'+
+    '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button>'+
+    '<button type="button" class="btn-excel-cap" style="background:#0891b2;" onclick="repararCapturadoDesdeMicrosip()">🔧 Reparar abonos de Microsip</button></div>'+
     '<div id="tcCapCuerpo"></div>';
 
   // TAB HISTORIAL
@@ -1447,6 +1453,52 @@ function deshacerCaptura(vendedorNombre, hojaKey, folio, itemOriginal){
     })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
+function repararCapturadoDesdeMicrosip(){
+  toast('⏳ Revisando facturas con abono que ya viene de Microsip…','');
+  var zonas = Object.keys(ZONAS);
+  var totalReparadas = 0;
+  var promesas = [];
+  zonas.forEach(function(zona){
+    (ZONAS[zona]||[]).forEach(function(vendorNombre){
+      var k = key(vendorNombre);
+      promesas.push(
+        Promise.all([
+          db.ref('planillas/'+zona+'/'+k).once('value'),
+          db.ref('cobros/'+zona+'/'+k).once('value')
+        ]).then(function(resultados){
+          var planillasSnap = resultados[0].val() || {};
+          var cobrosSnap = resultados[1].val() || {};
+          // Folios que SÍ tienen un cobro real hecho por el vendedor desde la app
+          var foliosConCobroReal = {};
+          Object.keys(cobrosSnap).forEach(function(cobroId){
+            var c = cobrosSnap[cobroId];
+            if(c.folio) foliosConCobroReal[c.folio] = true;
+          });
+          var updates = {};
+          Object.keys(planillasSnap).forEach(function(ts){
+            var facturas = (planillasSnap[ts]||{}).facturas || {};
+            Object.keys(facturas).forEach(function(folio){
+              var f = facturas[folio];
+              var esAbonoOCobrada = (f.estado==='abono' || f.estado==='cobrada');
+              // Si tiene abono/cobrada, no está marcado como capturado, y NUNCA hubo un cobro real
+              // hecho desde la app para ese folio — es porque ese abono ya venía de Microsip desde
+              // que se subió el PDF, y no es un pendiente nuevo que Lupe tenga que volver a meter.
+              if(esAbonoOCobrada && !f.capturadoEnMicrosip && !foliosConCobroReal[folio]){
+                updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/capturadoEnMicrosip'] = true;
+                totalReparadas++;
+              }
+            });
+          });
+          if(Object.keys(updates).length) return db.ref().update(updates);
+        })
+      );
+    });
+  });
+  Promise.all(promesas).then(function(){
+    toast('✓ Se corrigieron '+totalReparadas+' factura(s) que ya venían capturadas desde Microsip','ok');
+    cargarMain();
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
 function repararFotosAntiguas(){
   toast('⏳ Buscando fotos antiguas sin conectar…','');
   var zonas = Object.keys(ZONAS);
@@ -1543,6 +1595,7 @@ function verFoto(id){
 
 /* ── Tabla "Por Capturar": buscador universal + columnas ordenables ── */
 var _porCapturarCache = [];
+var _secuenciaPorCapturar = 0;
 var _ordenPorCapturar = {campo:'monto', dir:-1};
 function ordenarPorCapturar(campo){
   if(_ordenPorCapturar.campo===campo){ _ordenPorCapturar.dir *= -1; } else { _ordenPorCapturar.campo=campo; _ordenPorCapturar.dir=1; }
