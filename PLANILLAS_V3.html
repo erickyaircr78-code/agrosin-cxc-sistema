@@ -1417,40 +1417,53 @@ function repararFotosAntiguas(){
   toast('⏳ Buscando fotos antiguas sin conectar…','');
   var zonas = Object.keys(ZONAS);
   var totalReparadas = 0;
+  var totalDescartadas = 0;
   var promesas = [];
-  zonas.forEach(function(zona){
-    (ZONAS[zona]||[]).forEach(function(vendorNombre){
-      var k = key(vendorNombre);
-      promesas.push(
-        Promise.all([
-          db.ref('cobros/'+zona+'/'+k).once('value'),
-          db.ref('planillas/'+zona+'/'+k).once('value')
-        ]).then(function(resultados){
-          var cobrosSnap = resultados[0].val() || {};
-          var planillasSnap = resultados[1].val() || {};
-          var folioAFotoId = {};
-          Object.keys(cobrosSnap).forEach(function(cobroId){
-            var c = cobrosSnap[cobroId];
-            if(c.tieneFoto && c.folio){ folioAFotoId[c.folio] = cobroId; }
-          });
-          var updates = {};
-          Object.keys(planillasSnap).forEach(function(ts){
-            var facturas = (planillasSnap[ts]||{}).facturas || {};
-            Object.keys(facturas).forEach(function(folio){
-              var f = facturas[folio];
-              if(f.tieneFoto && !f.fotoId && folioAFotoId[folio]){
-                updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
-                totalReparadas++;
+  db.ref('comprobantesFotos').once('value').then(function(fotosGlobalSnap){
+    var fotosReales = fotosGlobalSnap.val() || {}; // el catálogo real de fotos que sí existen de verdad
+    zonas.forEach(function(zona){
+      (ZONAS[zona]||[]).forEach(function(vendorNombre){
+        var k = key(vendorNombre);
+        promesas.push(
+          Promise.all([
+            db.ref('cobros/'+zona+'/'+k).once('value'),
+            db.ref('planillas/'+zona+'/'+k).once('value')
+          ]).then(function(resultados){
+            var cobrosSnap = resultados[0].val() || {};
+            var planillasSnap = resultados[1].val() || {};
+            var folioAFotoId = {};
+            Object.keys(cobrosSnap).forEach(function(cobroId){
+              var c = cobrosSnap[cobroId];
+              // Solo se toma en cuenta si la foto REALMENTE existe en comprobantesFotos, no solo por el aviso "tieneFoto"
+              if(c.tieneFoto && c.folio && fotosReales[cobroId] && fotosReales[cobroId].foto){
+                folioAFotoId[c.folio] = cobroId;
               }
             });
-          });
-          if(Object.keys(updates).length) return db.ref().update(updates);
-        })
-      );
+            var updates = {};
+            Object.keys(planillasSnap).forEach(function(ts){
+              var facturas = (planillasSnap[ts]||{}).facturas || {};
+              Object.keys(facturas).forEach(function(folio){
+                var f = facturas[folio];
+                if(f.tieneFoto && !f.fotoId){
+                  if(folioAFotoId[folio]){
+                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
+                    totalReparadas++;
+                  } else {
+                    // El aviso decía "tiene foto", pero de verdad nunca se guardó — se corrige el aviso para no confundir
+                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/tieneFoto'] = false;
+                    totalDescartadas++;
+                  }
+                }
+              });
+            });
+            if(Object.keys(updates).length) return db.ref().update(updates);
+          })
+        );
+      });
     });
-  });
-  Promise.all(promesas).then(function(){
-    toast('✓ Se repararon '+totalReparadas+' foto(s) antigua(s)','ok');
+    return Promise.all(promesas);
+  }).then(function(){
+    toast('✓ Se repararon '+totalReparadas+' foto(s) — y se corrigieron '+totalDescartadas+' aviso(s) de "tiene foto" que en realidad nunca se guardaron','ok');
     cargarMain();
   }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
