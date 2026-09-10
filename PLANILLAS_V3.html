@@ -494,8 +494,7 @@ function renderMain(results){
   tcCap.innerHTML =
     '<div class="tlbr-cap"><input type="text" class="srch-cap" id="capBusca" placeholder="🔍 Buscar por vendedor, cliente, folio, monto o tipo de pago…" oninput="dibujarTablaPorCapturar()">'+
     '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button>'+
-    '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button>'+
-    '<button type="button" class="btn-excel-cap" style="background:#dc2626;" onclick="diagnosticarFactura()">🔍 Diagnóstico</button></div>'+
+    '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button></div>'+
     '<div id="tcCapCuerpo"></div>';
 
   // TAB HISTORIAL
@@ -1413,67 +1412,6 @@ function deshacerCaptura(vendedorNombre, hojaKey, folio){
       toast('↩ Se deshizo — vuelve a aparecer en la lista','ok');
     })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
-}
-function diagnosticarFactura(){
-  var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: JOSE HERNANDEZ)');
-  if(!vendedorNombre) return;
-  var folio = prompt('¿Folio EXACTO? (ej: AG0059309)');
-  if(!folio) return;
-  var zonaEncontrada = null;
-  Object.keys(ZONAS).forEach(function(z){ if(ZONAS[z].indexOf(vendedorNombre.toUpperCase())>=0) zonaEncontrada = z; });
-  if(!zonaEncontrada){ toast('No encontré ese vendedor en ninguna zona — revisa que el nombre sea exacto','err'); return; }
-  var k = key(vendedorNombre);
-  Promise.all([
-    db.ref('planillas/'+zonaEncontrada+'/'+k).once('value'),
-    db.ref('cobros/'+zonaEncontrada+'/'+k).once('value')
-  ]).then(function(resultados){
-    var planillasSnap = resultados[0].val() || {};
-    var cobrosSnap = resultados[1].val() || {};
-    var lineas = ['ZONA: '+zonaEncontrada, 'VENDEDOR KEY: '+k, ''];
-
-    lineas.push('=== FACTURA(S) CON ESE FOLIO EN PLANILLAS ===');
-    var encontroFactura = false;
-    Object.keys(planillasSnap).forEach(function(ts){
-      var f = (planillasSnap[ts].facturas||{})[folio];
-      if(f){
-        encontroFactura = true;
-        lineas.push('Planilla ts='+ts+':');
-        lineas.push('  tieneFoto = '+f.tieneFoto);
-        lineas.push('  fotoId = '+f.fotoId);
-        lineas.push('  estado = '+f.estado);
-      }
-    });
-    if(!encontroFactura) lineas.push('(no se encontró ninguna factura con ese folio)');
-
-    lineas.push('', '=== COBROS CON ESE FOLIO ===');
-    var encontroCobro = false;
-    Object.keys(cobrosSnap).forEach(function(id){
-      var c = cobrosSnap[id];
-      if(c.folio===folio){
-        encontroCobro = true;
-        lineas.push('Cobro id='+id+':');
-        lineas.push('  tieneFoto = '+c.tieneFoto);
-      }
-    });
-    if(!encontroCobro) lineas.push('(no se encontró ningún cobro con ese folio)');
-
-    if(planillasSnap){
-      Object.keys(planillasSnap).forEach(function(ts){
-        var f = (planillasSnap[ts].facturas||{})[folio];
-        if(f && f.fotoId){
-          db.ref('comprobantesFotos/'+f.fotoId).once('value').then(function(fotoSnap){
-            lineas.push('', '=== comprobantesFotos/'+f.fotoId+' ===');
-            lineas.push(fotoSnap.exists() ? 'SÍ EXISTE, tiene .foto: '+(!!fotoSnap.val().foto) : 'NO EXISTE ESE REGISTRO');
-            alert(lineas.join('\n'));
-          });
-          return;
-        }
-      });
-    }
-    if(!Object.keys(planillasSnap).some(function(ts){ var f=(planillasSnap[ts].facturas||{})[folio]; return f && f.fotoId; })){
-      alert(lineas.join('\n'));
-    }
-  }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 function repararFotosAntiguas(){
   toast('⏳ Buscando fotos antiguas sin conectar…','');
