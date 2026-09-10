@@ -684,7 +684,7 @@ function refrescarHistorialSiVisible(){
   if(document.getElementById('tab3').style.display !== 'none') renderHistorial();
 }
 
-var VENTANA_CORRECCION_MS = 10*60*1000; // 10 minutos
+var VENTANA_CORRECCION_MS = 20*60*1000; // 20 minutos
 function puedeCorregirse(c){
   var dentroDeTiempo = (Date.now() - c.ts) < VENTANA_CORRECCION_MS;
   var sinTocarEfectivo = c.tipo!=='Efectivo' || c.estado==='pendiente'; // si es efectivo, que nadie lo haya depositado/entregado ya
