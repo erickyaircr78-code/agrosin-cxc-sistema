@@ -752,14 +752,15 @@ function corregirCobro(id, esFueraDePlanilla){
   }
 
   if(!esFueraDePlanilla && c.planillaTs && c.folio){
-    var facturaRef = db.ref('planillas/'+miZona+'/'+miKey+'/'+c.planillaTs+'/facturas/'+c.folio);
+    var rutaFactura = 'planillas/'+miZona+'/'+miKey+'/'+c.planillaTs+'/facturas/'+c.folio;
+    var facturaRef = db.ref(rutaFactura);
     facturaRef.once('value').then(function(snap){
       var f = snap.val();
       if(f){
         var estadoRestaurado = (c.saldoAntes >= (f.total||0)-0.01) ? 'pendiente' : 'abono';
         var updatesFactura = {};
-        updatesFactura[facturaRef.path.toString()+'/saldo'] = c.saldoAntes;
-        updatesFactura[facturaRef.path.toString()+'/estado'] = estadoRestaurado;
+        updatesFactura[rutaFactura+'/saldo'] = c.saldoAntes;
+        updatesFactura[rutaFactura+'/estado'] = estadoRestaurado;
         db.ref().update(updatesFactura).then(finalizarBorrado);
       } else { finalizarBorrado(); }
     });
