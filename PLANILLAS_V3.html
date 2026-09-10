@@ -1450,8 +1450,10 @@ function repararFotosAntiguas(){
                     updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
                     totalReparadas++;
                   } else {
-                    // El aviso decía "tiene foto", pero de verdad nunca se guardó — se corrige el aviso para no confundir
+                    // El aviso decía "tiene foto", pero de verdad nunca se guardó — se corrige el aviso Y se borra
+                    // el fotoId inválido (si no se borra este también, el ícono se sigue mostrando por su cuenta)
                     updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/tieneFoto'] = false;
+                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = null;
                     totalDescartadas++;
                   }
                 }
