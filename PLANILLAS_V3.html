@@ -787,6 +787,9 @@ function extraerFacturas(texto){
       total: totalNum,
       saldo: saldoNum,
       montoCobrado: montoYaAcumulado,
+      // Si este abono viene del propio PDF (Microsip), ya está capturado ahí — no es un pendiente nuevo
+      // que Lupe tenga que volver a meter, así que no debe aparecer en "Por capturar".
+      capturadoEnMicrosip: montoYaAcumulado > 0 ? true : false,
       estado: montoYaAcumulado > 0 ? 'abono' : 'pendiente'
     });
   }
@@ -1051,7 +1054,10 @@ function activar(){
   data.facturas.forEach(function(f, idx){
     var mc = (f.montoCobrado!==undefined && f.montoCobrado!==null) ? f.montoCobrado : Math.max(0, (f.total||0)-(f.saldo||0));
     var est = f.estado || (mc>0 ? 'abono' : 'pendiente');
-    facts[f.folio] = {folio:f.folio,clave:f.clave,nombre:f.nombre,fecha:f.fecha,vencimiento:f.vencimiento,dias:f.dias,total:f.total,saldo:f.saldo,montoCobrado:mc,estado:est,idx:idx};
+    // Si ese abono ya viene reflejado desde Microsip (el PDF, o se tecleó a mano con Total≠Saldo),
+    // ya está capturado ahí — no debe aparecer como pendiente nuevo en "Por capturar".
+    var yaCapMicrosip = (f.capturadoEnMicrosip!==undefined) ? f.capturadoEnMicrosip : (mc>0 ? true : false);
+    facts[f.folio] = {folio:f.folio,clave:f.clave,nombre:f.nombre,fecha:f.fecha,vencimiento:f.vencimiento,dias:f.dias,total:f.total,saldo:f.saldo,montoCobrado:mc,estado:est,capturadoEnMicrosip:yaCapMicrosip,idx:idx};
   });
 
   var planilla = {

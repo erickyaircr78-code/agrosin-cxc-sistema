@@ -781,10 +781,19 @@ function procesarFotoDespues(event){
   var id = _idFotoDespuesPendiente;
   var esFueraDePlanilla = _fueraDePlanillaFotoDespuesPendiente;
   comprimirFoto(file, function(dataUrl){
-    db.ref('comprobantesFotos/'+id).set({
+    var refFoto = db.ref('comprobantesFotos/'+id);
+    refFoto.set({
       tipo:'cobro', refZona: miZona, refKey: miKey, refEsFueraDePlanilla: esFueraDePlanilla,
       foto: dataUrl, ts: Date.now(), vendor: miNombre
     }).then(function(){
+      // Verificación: se confirma leyendo de nuevo que la foto sí quedó guardada completa,
+      // antes de marcar "tiene foto" — así nunca se guarda un aviso sin que la foto esté de verdad.
+      return refFoto.once('value');
+    }).then(function(snap){
+      var guardado = snap.val();
+      if(!guardado || !guardado.foto){
+        throw new Error('La foto no se guardó completa — revisa tu conexión e intenta de nuevo');
+      }
       var pathCobro = esFueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+id+'/tieneFoto' : 'cobros/'+miZona+'/'+miKey+'/'+id+'/tieneFoto';
       var updates = {}; updates[pathCobro] = true;
       // Si es un cobro normal (no fuera de planilla), también se conecta en la factura para que Lupe la vea
@@ -1513,6 +1522,9 @@ function registrarCobro(){
       updates[base+'favorGenerado'] = (facturaSel.favorGenerado||0) + favorGeneradoRestante;
       updates[base+'cobradoPor'] = miNombre;
       updates[base+'fechaCobro'] = ahora.toLocaleDateString('es-MX');
+      // Cualquier pago NUEVO que el vendedor registre siempre necesita que Lupe lo capture en Microsip,
+      // sin importar si esa factura ya traía algo capturado de antes (del PDF o de un cobro anterior).
+      updates[base+'capturadoEnMicrosip'] = false;
       planillaActiva.facturas[facturaSel.folio].saldo = saldoDespues;
       planillaActiva.facturas[facturaSel.folio].estado = saldoDespues<=0.005 ? 'cobrada' : 'abono';
 
@@ -1556,12 +1568,21 @@ function registrarCobro(){
     // Si adjuntó foto del comprobante (transferencia/depósito/tarjeta), se guarda ligada a este cobro
     if(fotoComprobanteBase64){
       var idFotoCobro = ref.key;
+      var refFotoOriginal = db.ref('comprobantesFotos/'+idFotoCobro);
       cadenaUpdate = cadenaUpdate.then(function(){
-        return db.ref('comprobantesFotos/'+idFotoCobro).set({
+        return refFotoOriginal.set({
           tipo:'cobro', refZona: miZona, refKey: miKey, refEsFueraDePlanilla: esFueraDePlanilla,
           foto: fotoComprobanteBase64, ts: ahora.getTime(), vendor: miNombre, folio: facturaSel.folio
         });
       }).then(function(){
+        // Verificación: se confirma leyendo de nuevo que la foto sí quedó guardada completa
+        return refFotoOriginal.once('value');
+      }).then(function(snap){
+        var guardado = snap.val();
+        if(!guardado || !guardado.foto){
+          toast('⚠️ El comprobante no se guardó completo — agrégalo de nuevo desde el Historial','warn',6000);
+          return; // no se marca tieneFoto si no quedó guardada de verdad
+        }
         var pathCobro = esFueraDePlanilla ? 'cobrosFueraPlanilla/'+miZona+'/'+miKey+'/'+idFotoCobro+'/tieneFoto' : 'cobros/'+miZona+'/'+miKey+'/'+idFotoCobro+'/tieneFoto';
         var updatesFoto = {}; updatesFoto[pathCobro] = true;
         // También se marca en la factura de la planilla, para que el Excel de Lupe la vea (si no es fuera de planilla)
