@@ -477,22 +477,21 @@ function renderMain(results){
   });
   tcSin.appendChild(tbl);
 
-  // TAB POR CAPTURAR — vivo, sin depender de descargar Excel para saber qué falta meter a Microsip
+  // TAB POR CAPTURAR — vivo, sin depender de descargar Excel para saber qué falta meter a Microsip.
+  // Revisa TODAS las planillas de cada vendedor (no solo la más reciente), para que subir una
+  // planilla nueva nunca esconda pendientes de capturar que quedaron en una planilla anterior.
   var tcCap = document.createElement('div');
   tcCap.className = 'tc'+(_tabActivaPlanillas==='tc-cap'?' act':'');
   tcCap.id = 'tc-cap';
-  _porCapturarCache = [];
-  results.forEach(function(r){
-    if(!r.hoja || !r.hoja.facturas) return;
-    Object.keys(r.hoja.facturas).forEach(function(folio){
-      var f = r.hoja.facturas[folio];
-      if((f.estado==='cobrada' || f.estado==='abono') && !f.capturadoEnMicrosip){
-        _porCapturarCache.push({vendedor:r.vendor, hojaKey:r.hojaKey, folio:folio, cliente:f.nombre||'—', monto:f.montoCobrado||0, tipo:f.tipo||'—', banco:f.banco||'—', estado:f.estado==='cobrada'?'Cobrada':'Abono', fotoId:f.fotoId||null});
-      }
-    });
+  cargarTodoParaPorCapturar(function(todasLasFacturas){
+    _porCapturarCache = todasLasFacturas;
+    dibujarTablaPorCapturar();
   });
   tcCap.innerHTML =
     '<div class="tlbr-cap"><input type="text" class="srch-cap" id="capBusca" placeholder="🔍 Buscar por vendedor, cliente, folio, monto o tipo de pago…" oninput="dibujarTablaPorCapturar()">'+
+    '<select id="capFiltroVendedor" onchange="dibujarTablaPorCapturar()" style="padding:9px 12px;border:1.5px solid var(--bor);border-radius:8px;font-size:12px;font-family:\'Montserrat\',sans-serif;width:210px;"><option value="">Todos los vendedores</option>'+
+    (ZONAS[G.zona]||[]).map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('')+
+    '</select>'+
     '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button>'+
     '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button></div>'+
     '<div id="tcCapCuerpo"></div>';
@@ -1378,12 +1377,38 @@ function deshacerCapturaFueraDePlanilla(vendedorKey, id){
     })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
+function cargarTodoParaPorCapturar(callback){
+  var vends = ZONAS[G.zona]||[];
+  var todasLasFacturas = [];
+  var promesas = vends.map(function(v){
+    return db.ref('planillas/'+G.zona+'/'+key(v)).once('value').then(function(snap){
+      var d = snap.val() || {};
+      var tsMasReciente = Object.keys(d).length ? Math.max.apply(null, Object.keys(d).map(Number)) : null;
+      Object.keys(d).forEach(function(ts){
+        var hoja = d[ts] || {};
+        var facturas = hoja.facturas || {};
+        Object.keys(facturas).forEach(function(folio){
+          var f = facturas[folio];
+          if((f.estado==='cobrada' || f.estado==='abono') && !f.capturadoEnMicrosip){
+            todasLasFacturas.push({vendedor:v, hojaKey:ts, folio:folio, cliente:f.nombre||'—', monto:f.montoCobrado||0, tipo:f.tipo||'—', banco:f.banco||'—', estado:f.estado==='cobrada'?'Cobrada':'Abono', fotoId:f.fotoId||null, esPlanillaActual: Number(ts)===tsMasReciente});
+          }
+        });
+      });
+    });
+  });
+  Promise.all(promesas).then(function(){ callback(todasLasFacturas); }).catch(function(e){ toast('Error al cargar Por capturar: '+e.message,'err'); });
+}
 function marcarFacturaCapturada(vendedorNombre, hojaKey, folio){
   var k = key(vendedorNombre);
   var item = _porCapturarCache.find(function(p){ return p.vendedor===vendedorNombre && p.folio===folio; });
   var clienteNombre = item ? item.cliente : folio;
   db.ref('planillas/'+G.zona+'/'+k+'/'+hojaKey+'/facturas/'+folio+'/capturadoEnMicrosip').set(true)
-    .then(function(){ mostrarAvisoDeshacer(clienteNombre, function(){ deshacerCaptura(vendedorNombre, hojaKey, folio); }); })
+    .then(function(){
+      // Se quita de la lista local al instante — sin importar si es la planilla más reciente o una vieja
+      _porCapturarCache = _porCapturarCache.filter(function(p){ return !(p.vendedor===vendedorNombre && p.folio===folio && p.hojaKey===hojaKey); });
+      dibujarTablaPorCapturar();
+      mostrarAvisoDeshacer(clienteNombre, function(){ deshacerCaptura(vendedorNombre, hojaKey, folio, item); });
+    })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 var _timeoutDeshacer = null;
@@ -1403,10 +1428,13 @@ function mostrarAvisoDeshacer(clienteNombre, funcionDeshacer){
 
   _timeoutDeshacer = setTimeout(function(){ if(banner.parentNode) banner.remove(); }, 8000);
 }
-function deshacerCaptura(vendedorNombre, hojaKey, folio){
+function deshacerCaptura(vendedorNombre, hojaKey, folio, itemOriginal){
   var k = key(vendedorNombre);
   db.ref('planillas/'+G.zona+'/'+k+'/'+hojaKey+'/facturas/'+folio+'/capturadoEnMicrosip').set(false)
     .then(function(){
+      // Se regresa a la lista local al instante
+      if(itemOriginal) _porCapturarCache.push(itemOriginal);
+      dibujarTablaPorCapturar();
       var banner = document.getElementById('avisoDeshacerCaptura');
       if(banner) banner.remove();
       toast('↩ Se deshizo — vuelve a aparecer en la lista','ok');
@@ -1518,13 +1546,17 @@ function dibujarTablaPorCapturar(){
   var cont = document.getElementById('tcCapCuerpo');
   if(!cont) return;
   var q = (document.getElementById('capBusca')?document.getElementById('capBusca').value:'').trim().toLowerCase();
+  var vendedorFiltro = document.getElementById('capFiltroVendedor') ? document.getElementById('capFiltroVendedor').value : '';
   var lista = _porCapturarCache.filter(function(p){
+    if(vendedorFiltro && p.vendedor!==vendedorFiltro) return false;
     if(!q) return true;
     var texto = (p.vendedor+' '+p.cliente+' '+p.folio+' '+p.tipo+' '+p.monto+' '+p.banco+' '+p.estado).toLowerCase();
     return texto.indexOf(q) >= 0;
   });
   var campo = _ordenPorCapturar.campo, dir = _ordenPorCapturar.dir;
   lista.sort(function(a,b){
+    // Primero, lo de planilla anterior (más urgente/atrasado) siempre arriba, sin importar el orden de columna elegido
+    if(a.esPlanillaActual !== b.esPlanillaActual) return a.esPlanillaActual ? 1 : -1;
     var av=a[campo], bv=b[campo];
     if(typeof av==='string'){ av=av.toUpperCase(); bv=bv.toUpperCase(); }
     if(av<bv) return -1*dir; if(av>bv) return 1*dir; return 0;
@@ -1549,7 +1581,10 @@ function dibujarTablaPorCapturar(){
     '<th>Acción</th></tr></thead><tbody>';
   lista.forEach(function(p){
     var fotoBtn = p.fotoId ? ' <span style="cursor:pointer;font-size:14px;" onclick="verFoto(\''+p.fotoId+'\')" title="Ver comprobante">📷</span>' : '';
-    html += '<tr><td><b>'+p.vendedor+'</b></td><td>'+p.cliente+'</td><td>'+p.folio+'</td>'+
+    var etiquetaPlanilla = p.esPlanillaActual
+      ? ' <span style="background:#dcfce7;color:#166534;font-size:8px;font-weight:800;padding:1px 6px;border-radius:6px;">Planilla actual</span>'
+      : ' <span style="background:#fee2e2;color:#991b1b;font-size:8px;font-weight:800;padding:1px 6px;border-radius:6px;">Planilla anterior</span>';
+    html += '<tr><td><b>'+p.vendedor+'</b></td><td>'+p.cliente+etiquetaPlanilla+'</td><td>'+p.folio+'</td>'+
       '<td style="font-weight:800;color:#15803d;">$'+(+p.monto||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td>'+
       '<td>'+p.tipo+fotoBtn+'</td><td>'+p.banco+'</td>'+
       '<td>'+(p.estado==='Abono'?'<span style="color:#ea580c;font-weight:700;">Abono</span>':'<span style="color:#15803d;font-weight:700;">Cobrada</span>')+'</td>'+
@@ -1560,7 +1595,9 @@ function dibujarTablaPorCapturar(){
 }
 function exportarPorCapturar(){
   var q = (document.getElementById('capBusca')?document.getElementById('capBusca').value:'').trim().toLowerCase();
+  var vendedorFiltro = document.getElementById('capFiltroVendedor') ? document.getElementById('capFiltroVendedor').value : '';
   var lista = _porCapturarCache.filter(function(p){
+    if(vendedorFiltro && p.vendedor!==vendedorFiltro) return false;
     if(!q) return true;
     var texto = (p.vendedor+' '+p.cliente+' '+p.folio+' '+p.tipo+' '+p.monto+' '+p.banco+' '+p.estado).toLowerCase();
     return texto.indexOf(q) >= 0;
