@@ -194,6 +194,7 @@ input[type=file]{display:none}
   <div style="font-size:12px;color:rgba(255,255,255,0.45)">Módulo de Planillas · Entrega de Documentos</div>
   <div class="tb-right">
     <button id="btnBorrarPruebas" onclick="abrirModalBorrar()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
+    <button onclick="diagnosticarPlanillasVendedor()" style="background:#0c4a6e;color:#fff;border:1px solid #0284c7;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔍 TEMPORAL: Diagnóstico planillas</button>
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="u-chip" id="uChip">👤 Seleccionar</div>
   </div>
@@ -1028,6 +1029,29 @@ function nombreSeVeValido(nombre){
   return tieneEspacio && tieneVocal;
 }
 
+function diagnosticarPlanillasVendedor(){
+  var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: ISRAEL ODIN)');
+  if(!vendedorNombre) return;
+  var zonaEncontrada = null;
+  Object.keys(ZONAS).forEach(function(z){ if(ZONAS[z].indexOf(vendedorNombre.toUpperCase())>=0) zonaEncontrada = z; });
+  if(!zonaEncontrada){ toast('No encontré ese vendedor en ninguna zona','err'); return; }
+  var k = key(vendedorNombre);
+  db.ref('planillas/'+zonaEncontrada+'/'+k).once('value').then(function(snap){
+    var d = snap.val() || {};
+    var lineas = ['ZONA: '+zonaEncontrada, 'VENDEDOR KEY: '+k, '', '=== TODAS LAS PLANILLAS GUARDADAS ==='];
+    var tsOrdenados = Object.keys(d).sort();
+    if(!tsOrdenados.length) lineas.push('(no hay ninguna planilla guardada para este vendedor)');
+    tsOrdenados.forEach(function(ts){
+      var h = d[ts];
+      lineas.push('');
+      lineas.push('ts = '+ts+' ('+new Date(Number(ts)).toLocaleString('es-MX')+')');
+      lineas.push('  estado = '+h.estado);
+      lineas.push('  cargadaPor = '+h.cargadaPor);
+      lineas.push('  totalFacturas = '+h.totalFacturas);
+    });
+    alert(lineas.join('\n'));
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
 function activar(){
   if(!G.pdfData||!G.pdfData.facturas.length){ toast('Sin facturas','err'); return; }
 
