@@ -196,6 +196,7 @@ input[type=file]{display:none}
     <button id="btnBorrarPruebas" onclick="abrirModalBorrar()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
     <button onclick="diagnosticarPlanillasVendedor()" style="background:#0c4a6e;color:#fff;border:1px solid #0284c7;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔍 TEMPORAL: Diagnóstico planillas</button>
     <button onclick="forzarCierrePlanillaVieja()" style="background:#78350f;color:#fff;border:1px solid #d97706;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔒 TEMPORAL: Forzar cierre</button>
+    <button onclick="repararTodasPlanillasHuerfanas()" style="background:#166534;color:#fff;border:1px solid #22c55e;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔧 TEMPORAL: Reparar TODAS las huérfanas</button>
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="u-chip" id="uChip">👤 Seleccionar</div>
   </div>
@@ -1030,6 +1031,42 @@ function nombreSeVeValido(nombre){
   return tieneEspacio && tieneVocal;
 }
 
+function repararTodasPlanillasHuerfanas(){
+  if(!confirm('Esto va a revisar TODOS los vendedores de TODAS las zonas, y cerrar automáticamente cualquier planilla vieja que se haya quedado "activa" por error (dejando solo la más reciente de cada uno como activa). ¿Continuar?')) return;
+  toast('⏳ Revisando todas las planillas de todos los vendedores…','');
+  var zonas = Object.keys(ZONAS);
+  var promesas = [];
+  var totalCerradas = 0;
+  var detalle = [];
+  zonas.forEach(function(zona){
+    (ZONAS[zona]||[]).forEach(function(vendorNombre){
+      var k = key(vendorNombre);
+      promesas.push(
+        db.ref('planillas/'+zona+'/'+k).once('value').then(function(snap){
+          var d = snap.val() || {};
+          var activas = Object.keys(d).filter(function(ts){ return d[ts] && d[ts].estado==='activa'; });
+          if(activas.length <= 1) return; // nada que corregir, como debe ser
+          // Dejar SOLO la más reciente (el ts más grande = la fecha más nueva) como activa
+          var masReciente = activas.reduce(function(a,b){ return Number(a)>Number(b) ? a : b; });
+          var updates = {};
+          activas.forEach(function(ts){
+            if(ts !== masReciente){
+              updates['planillas/'+zona+'/'+k+'/'+ts+'/estado'] = 'cerrada';
+              totalCerradas++;
+              detalle.push(vendorNombre+' (ts='+ts+')');
+            }
+          });
+          return db.ref().update(updates);
+        })
+      );
+    });
+  });
+  Promise.all(promesas).then(function(){
+    toast('✓ Se cerraron '+totalCerradas+' planilla(s) huérfana(s)','ok');
+    if(detalle.length) alert('Se cerraron estas planillas viejas que se habían quedado activas por error:\n\n'+detalle.join('\n'));
+    cargarMain();
+  }).catch(function(e){ toast('Error: '+e.message,'err'); });
+}
 function forzarCierrePlanillaVieja(){
   var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: ISRAEL ODIN)');
   if(!vendedorNombre) return;
