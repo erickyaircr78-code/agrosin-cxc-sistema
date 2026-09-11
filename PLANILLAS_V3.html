@@ -195,6 +195,7 @@ input[type=file]{display:none}
   <div class="tb-right">
     <button id="btnBorrarPruebas" onclick="abrirModalBorrar()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
     <button onclick="diagnosticarPlanillasVendedor()" style="background:#0c4a6e;color:#fff;border:1px solid #0284c7;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔍 TEMPORAL: Diagnóstico planillas</button>
+    <button onclick="forzarCierrePlanillaVieja()" style="background:#78350f;color:#fff;border:1px solid #d97706;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔒 TEMPORAL: Forzar cierre</button>
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="u-chip" id="uChip">👤 Seleccionar</div>
   </div>
@@ -1029,6 +1030,20 @@ function nombreSeVeValido(nombre){
   return tieneEspacio && tieneVocal;
 }
 
+function forzarCierrePlanillaVieja(){
+  var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: ISRAEL ODIN)');
+  if(!vendedorNombre) return;
+  var tsExacto = prompt('¿Cuál es el "ts" exacto de la planilla vieja a cerrar? (el número largo, ej: 1788468795452)');
+  if(!tsExacto) return;
+  var zonaEncontrada = null;
+  Object.keys(ZONAS).forEach(function(z){ if(ZONAS[z].indexOf(vendedorNombre.toUpperCase())>=0) zonaEncontrada = z; });
+  if(!zonaEncontrada){ toast('No encontré ese vendedor','err'); return; }
+  var k = key(vendedorNombre);
+  if(!confirm('¿Seguro que quieres cerrar la planilla con ts='+tsExacto+' de '+vendedorNombre+'? Sus facturas pendientes se van a seguir viendo en "Por capturar" normalmente.')) return;
+  db.ref('planillas/'+zonaEncontrada+'/'+k+'/'+tsExacto+'/estado').set('cerrada')
+    .then(function(){ toast('✓ Planilla cerrada — ya debería verse en Historial','ok'); cargarMain(); })
+    .catch(function(e){ toast('Error: '+e.message,'err'); });
+}
 function diagnosticarPlanillasVendedor(){
   var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: ISRAEL ODIN)');
   if(!vendedorNombre) return;
