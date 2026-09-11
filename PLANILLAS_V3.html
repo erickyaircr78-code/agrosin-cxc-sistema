@@ -497,9 +497,7 @@ function renderMain(results){
     '<select id="capFiltroVendedor" onchange="dibujarTablaPorCapturar()" style="padding:9px 12px;border:1.5px solid var(--bor);border-radius:8px;font-size:12px;font-family:\'Montserrat\',sans-serif;width:210px;"><option value="">Todos los vendedores</option>'+
     (ZONAS[G.zona]||[]).map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('')+
     '</select>'+
-    '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button>'+
-    '<button type="button" class="btn-excel-cap" style="background:#7c3aed;" onclick="repararFotosAntiguas()">🔧 Reparar fotos antiguas</button>'+
-    '<button type="button" class="btn-excel-cap" style="background:#0891b2;" onclick="repararCapturadoDesdeMicrosip()">🔧 Reparar abonos de Microsip</button></div>'+
+    '<button type="button" class="btn-excel-cap" onclick="exportarPorCapturar()">⬇ Descargar Excel</button></div>'+
     '<div id="tcCapCuerpo"></div>';
 
   // TAB HISTORIAL
@@ -1072,7 +1070,20 @@ function activar(){
     totalFacturas:data.facturas.length, cobradas:0, facturas:facts
   };
 
-  db.ref('planillas/'+zonaV+'/'+k+'/'+ts).set(planilla).then(function(){
+  db.ref('planillas/'+zonaV+'/'+k).once('value').then(function(snapExistentes){
+    var existentes = snapExistentes.val() || {};
+    var updates = {};
+    updates['planillas/'+zonaV+'/'+k+'/'+ts] = planilla;
+    // Si ya había alguna planilla anterior de este vendedor que se quedó "activa" sin haberse
+    // cerrado a propósito, se cierra sola aquí — así no se queda huérfana (invisible tanto en
+    // "Planillas activas" como en "Historial"), y queda guardada correctamente en el Historial.
+    Object.keys(existentes).forEach(function(tsViejo){
+      if(existentes[tsViejo] && existentes[tsViejo].estado==='activa'){
+        updates['planillas/'+zonaV+'/'+k+'/'+tsViejo+'/estado'] = 'cerrada';
+      }
+    });
+    return db.ref().update(updates);
+  }).then(function(){
     G.pdfData = null;
     var saldo = Object.values(facts).reduce(function(s,f){ return s+(f.saldo||0); },0);
     el('main').innerHTML =
@@ -1173,7 +1184,7 @@ var COLUMNAS_EXCEL = [
   {header:'Vencimiento',key:'Vencimiento',width:12}, {header:'Atraso (días)',key:'Atraso (días)',width:10},
   {header:'Total Original',key:'Total Original',width:14}, {header:'Saldo',key:'Saldo',width:14},
   {header:'Efectivo',key:'Efectivo',width:12}, {header:'Cheque',key:'Cheque',width:12},
-  {header:'A Cuenta',key:'A Cuenta',width:12}, {header:'Banco',key:'Banco',width:12},
+  {header:'A Cuenta',key:'A Cuenta',width:12}, {header:'Abono previo (Microsip)',key:'Abono previo (Microsip)',width:18}, {header:'Banco',key:'Banco',width:12},
   {header:'Tipo de Cobro',key:'Tipo de Cobro',width:14}, {header:'Estado',key:'Estado',width:12},
   {header:'Fecha Cobro',key:'Fecha Cobro',width:12}, {header:'Comprobante',key:'Comprobante',width:12},
   {header:'Capturado en Microsip',key:'Capturado en Microsip',width:16},
@@ -1181,14 +1192,34 @@ var COLUMNAS_EXCEL = [
   {header:'Sdo. Favor Generado',key:'Sdo. Favor Generado',width:16}, {header:'Sdo. Favor Aplicado',key:'Sdo. Favor Aplicado',width:16},
   {header:'Observaciones',key:'Observaciones',width:16}
 ];
-function filaDesdeFactura(h, vendor, f){
+function construirCobrosRealesPorFolio(cobrosSnap, planillaTs){
+  var mapa = {};
+  Object.keys(cobrosSnap||{}).forEach(function(id){
+    var c = cobrosSnap[id];
+    if(!c.folio || String(c.planillaTs)!==String(planillaTs)) return;
+    if(!mapa[c.folio]) mapa[c.folio] = {efectivo:0, cheque:0, aCuenta:0};
+    var monto = c.monto||0;
+    if(c.tipo==='Efectivo') mapa[c.folio].efectivo += monto;
+    else if(c.tipo==='Cheque') mapa[c.folio].cheque += monto;
+    else mapa[c.folio].aCuenta += monto;
+  });
+  return mapa;
+}
+function filaDesdeFactura(h, vendor, f, cobrosReales){
+  // cobrosReales: {efectivo, cheque, aCuenta} — suma SOLO de cobros reales hechos desde la app
+  // para este folio en ESTA planilla específica. Lo que sobra del acumulado (montoCobrado) sin
+  // estar en esos cobros reales es abono que YA traía Microsip desde antes (nadie lo cobró en mano).
+  var cr = cobrosReales || {efectivo:0, cheque:0, aCuenta:0};
+  var totalCobrosReales = cr.efectivo + cr.cheque + cr.aCuenta;
+  var abonoPrevioMicrosip = Math.max(0, (f.montoCobrado||0) - totalCobrosReales);
   return {
     'Hoja':h.folio_hoja, 'Cobrador':vendor, 'Folio':f.folio, 'Clave':f.clave||'',
     'Nombre':f.nombre, 'Fecha Factura':f.fecha, 'Vencimiento':f.vencimiento,
     'Atraso (días)':f.dias||0, 'Total Original':f.total||0, 'Saldo':f.saldo||0,
-    'Efectivo':f.tipo==='Efectivo'?(f.montoCobrado||0):0,
-    'Cheque':f.tipo==='Cheque'?(f.montoCobrado||0):0,
-    'A Cuenta':(f.tipo&&f.tipo!=='Efectivo'&&f.tipo!=='Cheque'&&f.montoCobrado)?f.montoCobrado:0,
+    'Efectivo':cr.efectivo,
+    'Cheque':cr.cheque,
+    'A Cuenta':cr.aCuenta,
+    'Abono previo (Microsip)':abonoPrevioMicrosip,
     'Banco':f.banco||'', 'Tipo de Cobro':f.tipo||'', 'Estado':f.estado||'pendiente',
     'Fecha Cobro':f.fechaCobro||'', 'Comprobante':f.tieneFoto?'SÍ':'NO',
     'Capturado en Microsip':f.capturadoEnMicrosip?'SÍ':'NO',
@@ -1203,7 +1234,9 @@ async function descargarPlanilla(r, formato){
   var facts = h.facturas ? Object.values(h.facturas) : [];
   if(!facts.length){ toast('Sin facturas','warn'); return; }
   facts.sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
-  var rows = facts.map(function(f){ return filaDesdeFactura(h, r.vendor, f); });
+  var cobrosSnap = (await db.ref('cobros/'+G.zona+'/'+key(r.vendor)).once('value')).val() || {};
+  var mapaCobrosReales = construirCobrosRealesPorFolio(cobrosSnap, r.hojaKey);
+  var rows = facts.map(function(f){ return filaDesdeFactura(h, r.vendor, f, mapaCobrosReales[f.folio]); });
   var nombre = 'Planilla_'+r.vendor+'_Hoja'+h.folio_hoja+'_'+h.fecha.replace(/\//g,'-');
   if(formato==='excel'){
     var wb = new ExcelJS.Workbook();
@@ -1239,14 +1272,20 @@ function descargarTodas(formato){
   var allRows = [], allFacts = [], incluidas = [], done=0;
   toast('⏳ Preparando descarga…','');
   vends.forEach(function(v){
-    db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value').then(function(snap){
+    Promise.all([
+      db.ref('planillas/'+G.zona+'/'+key(v)).orderByChild('ts').limitToLast(1).once('value'),
+      db.ref('cobros/'+G.zona+'/'+key(v)).once('value')
+    ]).then(function(resultados){
+      var snap = resultados[0];
       var d=snap.val();
       if(d){
+        var hojaKeyV = Object.keys(d)[0];
         var h=Object.values(d)[0];
+        var mapaCobrosReales = construirCobrosRealesPorFolio(resultados[1].val()||{}, hojaKeyV);
         if(h&&h.estado==='activa'&&h.facturas&&h.cargadaPor===G.user){
           var factsArr = Object.values(h.facturas).sort(function(a,b){ return (a.idx||0)-(b.idx||0); });
           factsArr.forEach(function(f){
-            allRows.push(filaDesdeFactura(h, v, f));
+            allRows.push(filaDesdeFactura(h, v, f, mapaCobrosReales[f.folio]));
             allFacts.push(f);
           });
           incluidas.push({vendor:v, ts:h.ts});
@@ -1452,115 +1491,6 @@ function deshacerCaptura(vendedorNombre, hojaKey, folio, itemOriginal){
       toast('↩ Se deshizo — vuelve a aparecer en la lista','ok');
     })
     .catch(function(e){ toast('Error: '+e.message,'err'); });
-}
-function repararCapturadoDesdeMicrosip(){
-  toast('⏳ Revisando facturas con abono que ya viene de Microsip…','');
-  var zonas = Object.keys(ZONAS);
-  var totalReparadas = 0;
-  var promesas = [];
-  zonas.forEach(function(zona){
-    (ZONAS[zona]||[]).forEach(function(vendorNombre){
-      var k = key(vendorNombre);
-      promesas.push(
-        Promise.all([
-          db.ref('planillas/'+zona+'/'+k).once('value'),
-          db.ref('cobros/'+zona+'/'+k).once('value')
-        ]).then(function(resultados){
-          var planillasSnap = resultados[0].val() || {};
-          var cobrosSnap = resultados[1].val() || {};
-          // Combinaciones de "planilla + folio" que SÍ tienen un cobro real hecho por el vendedor
-          // desde la app — se usa planillaTs+folio juntos, porque el mismo folio puede repetirse
-          // en planillas distintas (semanas distintas) con historias completamente separadas.
-          var planillaFolioConCobroReal = {};
-          Object.keys(cobrosSnap).forEach(function(cobroId){
-            var c = cobrosSnap[cobroId];
-            if(c.folio && c.planillaTs) planillaFolioConCobroReal[c.planillaTs+'||'+c.folio] = true;
-          });
-          var updates = {};
-          Object.keys(planillasSnap).forEach(function(ts){
-            var facturas = (planillasSnap[ts]||{}).facturas || {};
-            Object.keys(facturas).forEach(function(folio){
-              var f = facturas[folio];
-              var esAbonoOCobrada = (f.estado==='abono' || f.estado==='cobrada');
-              // Si tiene abono/cobrada, no está marcado como capturado, y en ESTA planilla específica
-              // nunca hubo un cobro real hecho desde la app para ese folio — es porque ese abono ya
-              // venía de Microsip desde que se subió el PDF, y no es un pendiente nuevo que capturar.
-              if(esAbonoOCobrada && !f.capturadoEnMicrosip && !planillaFolioConCobroReal[ts+'||'+folio]){
-                updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/capturadoEnMicrosip'] = true;
-                totalReparadas++;
-              }
-            });
-          });
-          if(Object.keys(updates).length) return db.ref().update(updates);
-        })
-      );
-    });
-  });
-  Promise.all(promesas).then(function(){
-    toast('✓ Se corrigieron '+totalReparadas+' factura(s) que ya venían capturadas desde Microsip','ok');
-    cargarMain();
-  }).catch(function(e){ toast('Error: '+e.message,'err'); });
-}
-function repararFotosAntiguas(){
-  toast('⏳ Buscando fotos antiguas sin conectar…','');
-  var zonas = Object.keys(ZONAS);
-  var totalReparadas = 0;
-  var totalDescartadas = 0;
-  var promesas = [];
-  db.ref('comprobantesFotos').once('value').then(function(fotosGlobalSnap){
-    var fotosReales = fotosGlobalSnap.val() || {}; // el catálogo real de fotos que sí existen de verdad
-    zonas.forEach(function(zona){
-      (ZONAS[zona]||[]).forEach(function(vendorNombre){
-        var k = key(vendorNombre);
-        promesas.push(
-          Promise.all([
-            db.ref('cobros/'+zona+'/'+k).once('value'),
-            db.ref('planillas/'+zona+'/'+k).once('value')
-          ]).then(function(resultados){
-            var cobrosSnap = resultados[0].val() || {};
-            var planillasSnap = resultados[1].val() || {};
-            var folioAFotoId = {};
-            Object.keys(cobrosSnap).forEach(function(cobroId){
-              var c = cobrosSnap[cobroId];
-              // Solo se toma en cuenta si la foto REALMENTE existe en comprobantesFotos, no solo por el aviso "tieneFoto"
-              if(c.tieneFoto && c.folio && fotosReales[cobroId] && fotosReales[cobroId].foto){
-                folioAFotoId[c.folio] = cobroId;
-              }
-            });
-            var updates = {};
-            Object.keys(planillasSnap).forEach(function(ts){
-              var facturas = (planillasSnap[ts]||{}).facturas || {};
-              Object.keys(facturas).forEach(function(folio){
-                var f = facturas[folio];
-                var fotoIdActualEsValido = f.fotoId && fotosReales[f.fotoId] && fotosReales[f.fotoId].foto;
-                // Se revisa cualquier factura donde el fotoId puesto NO sirva (sin importar qué diga "tiene foto"),
-                // o donde diga "tiene foto" pero nunca se le puso ningún fotoId — el ícono solo mira fotoId,
-                // así que ese es el dato que de verdad hay que dejar limpio.
-                var necesitaRevision = (f.fotoId && !fotoIdActualEsValido) || (f.tieneFoto && !f.fotoId);
-                if(necesitaRevision){
-                  if(folioAFotoId[folio]){
-                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = folioAFotoId[folio];
-                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/tieneFoto'] = true;
-                    totalReparadas++;
-                  } else {
-                    // Nunca hubo una foto real que conectar — se borra el fotoId inválido y se apaga el aviso
-                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/tieneFoto'] = false;
-                    updates['planillas/'+zona+'/'+k+'/'+ts+'/facturas/'+folio+'/fotoId'] = null;
-                    totalDescartadas++;
-                  }
-                }
-              });
-            });
-            if(Object.keys(updates).length) return db.ref().update(updates);
-          })
-        );
-      });
-    });
-    return Promise.all(promesas);
-  }).then(function(){
-    toast('✓ Se repararon '+totalReparadas+' foto(s) — y se corrigieron '+totalDescartadas+' aviso(s) de "tiene foto" que en realidad nunca se guardaron','ok');
-    cargarMain();
-  }).catch(function(e){ toast('Error: '+e.message,'err'); });
 }
 function verFoto(id){
   db.ref('comprobantesFotos/'+id).once('value').then(function(snap){
