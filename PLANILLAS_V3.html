@@ -194,9 +194,6 @@ input[type=file]{display:none}
   <div style="font-size:12px;color:rgba(255,255,255,0.45)">Módulo de Planillas · Entrega de Documentos</div>
   <div class="tb-right">
     <button id="btnBorrarPruebas" onclick="abrirModalBorrar()" style="background:#7f1d1d;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🗑️ TEMPORAL: Borrar todas las pruebas</button>
-    <button onclick="diagnosticarPlanillasVendedor()" style="background:#0c4a6e;color:#fff;border:1px solid #0284c7;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔍 TEMPORAL: Diagnóstico planillas</button>
-    <button onclick="forzarCierrePlanillaVieja()" style="background:#78350f;color:#fff;border:1px solid #d97706;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔒 TEMPORAL: Forzar cierre</button>
-    <button onclick="repararTodasPlanillasHuerfanas()" style="background:#166534;color:#fff;border:1px solid #22c55e;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">🔧 TEMPORAL: Reparar TODAS las huérfanas</button>
     <div class="conn"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="u-chip" id="uChip">👤 Seleccionar</div>
   </div>
@@ -1031,79 +1028,6 @@ function nombreSeVeValido(nombre){
   return tieneEspacio && tieneVocal;
 }
 
-function repararTodasPlanillasHuerfanas(){
-  if(!confirm('Esto va a revisar TODOS los vendedores de TODAS las zonas, y cerrar automáticamente cualquier planilla vieja que se haya quedado "activa" por error (dejando solo la más reciente de cada uno como activa). ¿Continuar?')) return;
-  toast('⏳ Revisando todas las planillas de todos los vendedores…','');
-  var zonas = Object.keys(ZONAS);
-  var promesas = [];
-  var totalCerradas = 0;
-  var detalle = [];
-  zonas.forEach(function(zona){
-    (ZONAS[zona]||[]).forEach(function(vendorNombre){
-      var k = key(vendorNombre);
-      promesas.push(
-        db.ref('planillas/'+zona+'/'+k).once('value').then(function(snap){
-          var d = snap.val() || {};
-          var activas = Object.keys(d).filter(function(ts){ return d[ts] && d[ts].estado==='activa'; });
-          if(activas.length <= 1) return; // nada que corregir, como debe ser
-          // Dejar SOLO la más reciente (el ts más grande = la fecha más nueva) como activa
-          var masReciente = activas.reduce(function(a,b){ return Number(a)>Number(b) ? a : b; });
-          var updates = {};
-          activas.forEach(function(ts){
-            if(ts !== masReciente){
-              updates['planillas/'+zona+'/'+k+'/'+ts+'/estado'] = 'cerrada';
-              totalCerradas++;
-              detalle.push(vendorNombre+' (ts='+ts+')');
-            }
-          });
-          return db.ref().update(updates);
-        })
-      );
-    });
-  });
-  Promise.all(promesas).then(function(){
-    toast('✓ Se cerraron '+totalCerradas+' planilla(s) huérfana(s)','ok');
-    if(detalle.length) alert('Se cerraron estas planillas viejas que se habían quedado activas por error:\n\n'+detalle.join('\n'));
-    cargarMain();
-  }).catch(function(e){ toast('Error: '+e.message,'err'); });
-}
-function forzarCierrePlanillaVieja(){
-  var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: ISRAEL ODIN)');
-  if(!vendedorNombre) return;
-  var tsExacto = prompt('¿Cuál es el "ts" exacto de la planilla vieja a cerrar? (el número largo, ej: 1788468795452)');
-  if(!tsExacto) return;
-  var zonaEncontrada = null;
-  Object.keys(ZONAS).forEach(function(z){ if(ZONAS[z].indexOf(vendedorNombre.toUpperCase())>=0) zonaEncontrada = z; });
-  if(!zonaEncontrada){ toast('No encontré ese vendedor','err'); return; }
-  var k = key(vendedorNombre);
-  if(!confirm('¿Seguro que quieres cerrar la planilla con ts='+tsExacto+' de '+vendedorNombre+'? Sus facturas pendientes se van a seguir viendo en "Por capturar" normalmente.')) return;
-  db.ref('planillas/'+zonaEncontrada+'/'+k+'/'+tsExacto+'/estado').set('cerrada')
-    .then(function(){ toast('✓ Planilla cerrada — ya debería verse en Historial','ok'); cargarMain(); })
-    .catch(function(e){ toast('Error: '+e.message,'err'); });
-}
-function diagnosticarPlanillasVendedor(){
-  var vendedorNombre = prompt('¿Nombre EXACTO del vendedor? (ej: ISRAEL ODIN)');
-  if(!vendedorNombre) return;
-  var zonaEncontrada = null;
-  Object.keys(ZONAS).forEach(function(z){ if(ZONAS[z].indexOf(vendedorNombre.toUpperCase())>=0) zonaEncontrada = z; });
-  if(!zonaEncontrada){ toast('No encontré ese vendedor en ninguna zona','err'); return; }
-  var k = key(vendedorNombre);
-  db.ref('planillas/'+zonaEncontrada+'/'+k).once('value').then(function(snap){
-    var d = snap.val() || {};
-    var lineas = ['ZONA: '+zonaEncontrada, 'VENDEDOR KEY: '+k, '', '=== TODAS LAS PLANILLAS GUARDADAS ==='];
-    var tsOrdenados = Object.keys(d).sort();
-    if(!tsOrdenados.length) lineas.push('(no hay ninguna planilla guardada para este vendedor)');
-    tsOrdenados.forEach(function(ts){
-      var h = d[ts];
-      lineas.push('');
-      lineas.push('ts = '+ts+' ('+new Date(Number(ts)).toLocaleString('es-MX')+')');
-      lineas.push('  estado = '+h.estado);
-      lineas.push('  cargadaPor = '+h.cargadaPor);
-      lineas.push('  totalFacturas = '+h.totalFacturas);
-    });
-    alert(lineas.join('\n'));
-  }).catch(function(e){ toast('Error: '+e.message,'err'); });
-}
 function activar(){
   if(!G.pdfData||!G.pdfData.facturas.length){ toast('Sin facturas','err'); return; }
 
@@ -1148,15 +1072,38 @@ function activar(){
 
   db.ref('planillas/'+zonaV+'/'+k).once('value').then(function(snapExistentes){
     var existentes = snapExistentes.val() || {};
+    var tsViejosActivos = Object.keys(existentes).filter(function(t){ return existentes[t] && existentes[t].estado==='activa'; });
+
+    // Si ya había una planilla anterior activa, se avisa CLARAMENTE antes de continuar — no se hace
+    // en silencio, para que quien esté cargando se entere y pueda confirmar que de verdad ya se
+    // terminó con la anterior (o cancelar aquí si algo no cuadra y hay que revisarlo primero).
+    if(tsViejosActivos.length){
+      var detalleAviso = tsViejosActivos.map(function(t){
+        var hViejo = existentes[t];
+        var facturasViejo = hViejo.facturas || {};
+        var totalViejo = Object.keys(facturasViejo).length;
+        var sinCapturar = Object.values(facturasViejo).filter(function(f){
+          return (f.estado==='cobrada'||f.estado==='abono') && !f.capturadoEnMicrosip;
+        }).length;
+        return '• Planilla del '+(hViejo.fecha||'?')+' — '+totalViejo+' facturas, '+sinCapturar+' aún sin capturar en Microsip';
+      }).join('\n');
+      var continuar = confirm(
+        '⚠️ AVISO IMPORTANTE\n\n'+vendedor+' ya tenía una planilla activa sin cerrar:\n\n'+detalleAviso+
+        '\n\nAl activar esta planilla nueva, la(s) anterior(es) se van a cerrar automáticamente '+
+        '(sus pendientes se van a seguir viendo en "Por capturar" normalmente, no se pierden).\n\n'+
+        '¿Confirmas que ya se terminó con la anterior y quieres continuar?'
+      );
+      if(!continuar){
+        if(btn){ btn.disabled=false; btn.textContent='✅ Activar planilla'; }
+        toast('Activación cancelada — revisa la planilla anterior antes de continuar','warn');
+        return Promise.reject('cancelado_por_usuario');
+      }
+    }
+
     var updates = {};
     updates['planillas/'+zonaV+'/'+k+'/'+ts] = planilla;
-    // Si ya había alguna planilla anterior de este vendedor que se quedó "activa" sin haberse
-    // cerrado a propósito, se cierra sola aquí — así no se queda huérfana (invisible tanto en
-    // "Planillas activas" como en "Historial"), y queda guardada correctamente en el Historial.
-    Object.keys(existentes).forEach(function(tsViejo){
-      if(existentes[tsViejo] && existentes[tsViejo].estado==='activa'){
-        updates['planillas/'+zonaV+'/'+k+'/'+tsViejo+'/estado'] = 'cerrada';
-      }
+    tsViejosActivos.forEach(function(tsViejo){
+      updates['planillas/'+zonaV+'/'+k+'/'+tsViejo+'/estado'] = 'cerrada';
     });
     return db.ref().update(updates);
   }).then(function(){
@@ -1186,7 +1133,10 @@ function activar(){
     eb.appendChild(b1); eb.appendChild(b2);
     cargarSidebar();
     toast('✅ Planilla activada correctamente','ok');
-  }).catch(function(e){ console.error(e); toast('Error al guardar','err'); if(btn){btn.disabled=false;btn.textContent='✅ Activar planilla';} });
+  }).catch(function(e){
+    if(e === 'cancelado_por_usuario') return; // ya se avisó y se restauró el botón arriba, no es un error real
+    console.error(e); toast('Error al guardar','err'); if(btn){btn.disabled=false;btn.textContent='✅ Activar planilla';}
+  });
 }
 
 // ── VER DETALLE ───────────────────────────────────────────
