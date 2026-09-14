@@ -191,7 +191,7 @@ input[type=file]{display:none;}
     <div class="cbx"><span class="cdot" id="cdot"></span><span id="clbl">Conectando…</span></div>
     <div class="wk" id="wk">—</div>
     <button type="button" class="btnTop" style="background:#1a56db;border-color:#1a56db;color:#fff;" onclick="exportarGeneral()">⬇ Excel</button>
-    <button type="button" class="btnTop" onclick="confirmarNuevaSemana()">↺ Cerrar semana</button>
+    <button type="button" class="btnTop" onclick="abrirModalCerrarSemana()">↺ Cerrar semana</button>
     <button type="button" class="btnTopRojo btnTop" style="display:none" onclick="abrirModalBorrar()">🗑 Borrar pruebas</button>
   </div>
 </div>
@@ -276,10 +276,10 @@ input[type=file]{display:none;}
     <div class="lpnl">
       <div class="lhdr">
         <div class="lttl">📨 Capturas en tiempo real</div>
-        <span style="font-size:10px;color:var(--acc)">Depósitos confirmados — dinero ya en el banco</span>
+        <span style="font-size:10px;color:var(--acc)">Dinero ya seguro — transferencia/tarjeta al instante, efectivo hasta depositarse o entregarse</span>
       </div>
       <div class="lhr"><span>Vendedor</span><span>Banco</span><span>Monto</span><span>Tipo</span><span>Hora</span></div>
-      <div class="lbody" id="lbody"><div class="remp">Esperando depósitos confirmados…</div></div>
+      <div class="lbody" id="lbody"><div class="remp">Esperando dinero confirmado…</div></div>
     </div>
 
     <!-- ── Historial semanal ── -->
@@ -422,6 +422,23 @@ input[type=file]{display:none;}
     <input type="text" id="inpConfirmarBorrar" placeholder="Escribe BORRAR" oninput="validarBorrar()" style="width:100%;padding:10px;border:2px solid #dde1e9;border-radius:6px;font-size:14px;font-weight:700;text-align:center;text-transform:uppercase;margin-bottom:12px;box-sizing:border-box;">
     <button type="button" id="btnConfirmarBorrarModal" onclick="borrarPruebasTablero()" disabled style="width:100%;padding:11px;background:#c5cad4;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;margin-bottom:8px;cursor:pointer;">Confirmar borrado</button>
     <button type="button" onclick="cerrarModalBorrar()" style="width:100%;padding:10px;background:#f4f6f9;color:#4a5568;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">Cancelar</button>
+  </div>
+</div>
+
+<div id="modalCerrarSemana" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:10px;max-width:420px;width:100%;padding:22px;font-family:'IBM Plex Sans',sans-serif;">
+    <div style="font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:10px;">⚠️ Cerrar semana</div>
+    <div style="font-size:12px;color:#334155;line-height:1.5;margin-bottom:12px;">Se va a guardar el historial y borrar los cobros, depósitos y entregas de ANTES de hoy.<br><br><strong>Esto es lo de HOY que se va a conservar</strong> (no se toca):</div>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:12px;max-height:220px;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8fafc;font-size:11px;font-weight:700;color:#64748b;position:sticky;top:0;">
+        <span>VENDEDOR</span><span># PAGOS</span><span>MONTO</span>
+      </div>
+      <div id="cierreSemanaFilas"></div>
+    </div>
+    <div id="cierreSemanaTotal" style="font-size:12px;font-weight:800;color:#07101F;background:#FFF7ED;padding:9px 12px;border-radius:8px;margin-bottom:12px;"></div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:14px;">Asegúrate de haber descargado el Excel (botón "⬇ Excel" de arriba) antes de continuar.</div>
+    <button type="button" onclick="ejecutarCierreSemana()" style="width:100%;padding:11px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;margin-bottom:8px;cursor:pointer;">Confirmar cierre</button>
+    <button type="button" onclick="cerrarModalCerrarSemana()" style="width:100%;padding:10px;background:#f4f6f9;color:#4a5568;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">Cancelar</button>
   </div>
 </div>
 
@@ -905,20 +922,62 @@ function renderBancos(){
 
 /* ══════════════════ CAPTURAS EN TIEMPO REAL (LOG) ══════════════════ */
 function renderLog(){
+  // Muestra dinero ya SEGURO — misma definición usada en "Confirmado Semana":
+  // no-efectivo (transferencia/tarjeta/cheque, ya está en el banco) + efectivo YA depositado
+  // + efectivo YA entregado a oficina y confirmado. Efectivo aún sin depositar/entregar NO aparece.
   var b = document.getElementById('lbody');
-  var deps = filtroZona(depositosTodos);
-  if(!deps.length){ b.innerHTML='<div class="remp">Esperando depósitos confirmados…</div>'; return; }
-  deps = deps.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,50);
-  b.innerHTML = deps.map(function(d){
+  var seguros = [];
+  filtroZona(cobrosTodos.concat(fueraPlanillaTodos)).forEach(function(c){
+    if(c.tipo !== 'Efectivo'){
+      seguros.push({vendor:c.vendor, banco:c.banco||'—', monto:c.monto||0, tipo:c.tipo||'—', ts:c.ts, tieneFoto:false, id:c.id});
+    }
+  });
+  filtroZona(depositosTodos).forEach(function(d){
+    seguros.push({vendor:d.vendor, banco:d.banco||'—', monto:d.montoReal||0, tipo:'Efectivo depositado', ts:d.ts, tieneFoto:d.tieneFoto, id:d.id});
+  });
+  filtroZona(entregasTodos).filter(function(e){ return e.estado==='confirmado'; }).forEach(function(e){
+    seguros.push({vendor:e.vendor, banco:'Entregado a oficina', monto:e.totalCobrado||0, tipo:'Efectivo entregado', ts:e.ts, tieneFoto:false, id:e.id});
+  });
+  if(!seguros.length){ b.innerHTML='<div class="remp">Esperando dinero confirmado…</div>'; return; }
+  seguros = seguros.sort(function(a,b){return b.ts-a.ts;}).slice(0,50);
+  b.innerHTML = seguros.map(function(d){
     var hora = new Date(d.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     var fotoBtn = d.tieneFoto ? ' <span style="cursor:pointer;" onclick="verFoto(\''+d.id+'\')" title="Ver ficha de depósito">📷</span>' : '';
-    return '<div class="lrow"><span class="lv">'+(d.vendor||'—')+'</span><span class="lt">'+(d.banco||'—')+'</span><span class="la">'+fmt(d.montoReal||0)+'</span><span class="lt">'+(d.tipo||'—')+fotoBtn+'</span><span class="lts">'+hora+'</span></div>';
+    return '<div class="lrow"><span class="lv">'+(d.vendor||'—')+'</span><span class="lt">'+(d.banco||'—')+'</span><span class="la">'+fmt(d.monto||0)+'</span><span class="lt">'+(d.tipo||'—')+fotoBtn+'</span><span class="lts">'+hora+'</span></div>';
   }).join('');
 }
 
 /* ══════════════════ HISTORIAL SEMANAL ══════════════════ */
-function confirmarNuevaSemana(){
-  if(!confirm('¿Cerrar semana?\n\n1) Se guardará el historial de esta semana (sin contar lo de hoy, que ya es de la semana nueva).\n2) Se borrarán los cobros, depósitos y entregas de ANTES de hoy — lo que ya se haya cobrado hoy se conserva, porque ya pertenece a la semana que empieza.\n\n⚠️ Asegúrate de haber descargado el Excel primero (botón "⬇ Excel" de arriba) — después de cerrar, esos datos ya no estarán disponibles en el tablero.')) return;
+// Antes de cerrar, se muestra un resumen real (vendedor, # de pagos, monto) de todo lo de HOY
+// que se va a conservar — así se puede detectar a simple vista si algo de hoy no cuadra,
+// en vez de confiar a ciegas en un cuadro de confirmación genérico.
+function abrirModalCerrarSemana(){
+  var inicioHoy = new Date(); inicioHoy.setHours(0,0,0,0); inicioHoy = inicioHoy.getTime();
+  var todos = cobrosTodos.concat(fueraPlanillaTodos);
+  var porVendedor = {};
+  todos.forEach(function(c){
+    if((c.ts||0) >= inicioHoy){
+      var nombre = c.vendor || '—';
+      if(!porVendedor[nombre]) porVendedor[nombre] = {monto:0, n:0};
+      porVendedor[nombre].monto += (c.monto||0);
+      porVendedor[nombre].n += 1;
+    }
+  });
+  var nombres = Object.keys(porVendedor).sort(function(a,b){ return porVendedor[b].monto - porVendedor[a].monto; });
+  var totalMonto = 0, totalN = 0;
+  var filas = nombres.map(function(n){
+    totalMonto += porVendedor[n].monto; totalN += porVendedor[n].n;
+    return '<div style="display:flex;justify-content:space-between;padding:8px 12px;font-size:12px;border-top:1px solid #f1f5f9"><span>'+n+'</span><span>'+porVendedor[n].n+'</span><span style="font-weight:700">'+fmt(porVendedor[n].monto)+'</span></div>';
+  }).join('');
+  document.getElementById('cierreSemanaFilas').innerHTML = filas || '<div style="padding:12px;font-size:12px;color:#64748b;text-align:center">Nadie ha capturado nada hoy todavía</div>';
+  document.getElementById('cierreSemanaTotal').textContent = 'TOTAL DE HOY: '+totalN+' pago(s) — '+fmt(totalMonto);
+  document.getElementById('modalCerrarSemana').style.display = 'flex';
+}
+function cerrarModalCerrarSemana(){
+  document.getElementById('modalCerrarSemana').style.display = 'none';
+}
+function ejecutarCierreSemana(){
+  cerrarModalCerrarSemana();
   var inicioHoy = new Date(); inicioHoy.setHours(0,0,0,0); inicioHoy = inicioHoy.getTime();
   var todos = cobrosTodos.concat(fueraPlanillaTodos);
   var vendedoresData = {};
