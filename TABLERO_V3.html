@@ -247,7 +247,7 @@ input[type=file]{display:none;}
       <div class="tbl-s">
         <table>
           <thead><tr>
-            <th>Vendedor</th><th>Zona</th><th class="tn">Cartera Semanal</th><th class="tn">Confirmado Semana</th><th>Avance</th><th class="tn">Falta</th><th class="tn">Confirmado Hoy</th>
+            <th>Vendedor</th><th>Zona</th><th class="tn">Cartera Semanal</th><th class="tn">Lun</th><th class="tn">Mar</th><th class="tn">Mié</th><th class="tn">Jue</th><th class="tn">Vie</th><th class="tn">Sáb</th><th class="tn">Confirmado Semana</th><th>Avance</th><th class="tn">Falta</th><th class="tn">Confirmado Hoy</th>
           </tr></thead>
           <tbody id="tbodySeg"></tbody>
         </table>
@@ -648,23 +648,30 @@ function renderSeguimiento(){
       var k = key(nombre);
       var cSem = dineroSeguro(todos, k, function(ts){ return ts>=inicioSem; });
       var cHoy = dineroSeguro(todos, k, function(ts){ return esHoy(ts); });
+      // Desglose Lunes(0) a Sábado(5) de la semana actual — misma definición de "dinero seguro"
+      var porDia = [0,1,2,3,4,5].map(function(offset){
+        var diaIni = inicioSem + offset*86400000;
+        var diaFin = diaIni + 86400000;
+        return dineroSeguro(todos, k, function(ts){ return ts>=diaIni && ts<diaFin; });
+      });
       var cart = carteraSemanal[zkey(z, nombre)];
       if(!cart || !cart.total) return; // solo interesan vendedores CON cartera cargada
       var total = cart.total;
       var pct = Math.min(100,(cSem/total)*100);
       var falta = Math.max(0, total-cSem);
-      filas.push({nombre:nombre,zona:z,total:total,cSem:cSem,cHoy:cHoy,pct:pct,falta:falta});
+      filas.push({nombre:nombre,zona:z,total:total,cSem:cSem,cHoy:cHoy,pct:pct,falta:falta,porDia:porDia});
     });
   });
   filas.sort(function(a,b){ return (b.total||0)-(a.total||0); });
   var tbody = document.getElementById('tbodySeg');
-  if(!filas.length){ tbody.innerHTML='<tr><td colspan="7" class="remp">Sin datos para este filtro</td></tr>'; return; }
+  if(!filas.length){ tbody.innerHTML='<tr><td colspan="13" class="remp">Sin datos para este filtro</td></tr>'; return; }
   var zClass = {CDMX:'zc',MORELOS:'zm',PUEBLA:'zp'};
   tbody.innerHTML = filas.map(function(f){
     var pctTxt = f.pct===null ? '<span class="rpill gris">Sin cartera</span>' :
       '<div class="prw"><div class="prb"><div class="prf" style="width:'+f.pct+'%;background:'+(f.pct>=60?'var(--grn)':f.pct>=25?'#f59e0b':'var(--red)')+'"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+f.pct.toFixed(1)+'%</span></div>';
+    var diasTd = f.porDia.map(function(m){ return '<td class="tn">'+(m>0?fmt(m):'—')+'</td>'; }).join('');
     return '<tr><td class="vname">'+f.nombre+'</td><td><span class="zbadge '+zClass[f.zona]+'">'+f.zona+'</span></td>'+
-      '<td class="ttot">'+(f.total?fmt(f.total):'—')+'</td><td class="tcob">'+fmt(f.cSem)+'</td><td>'+pctTxt+'</td>'+
+      '<td class="ttot">'+(f.total?fmt(f.total):'—')+'</td>'+diasTd+'<td class="tcob">'+fmt(f.cSem)+'</td><td>'+pctTxt+'</td>'+
       '<td class="tfal '+(f.falta>0?'fbd':'fok')+'">'+(f.total?fmt(f.falta):'—')+'</td><td class="tn">'+fmt(f.cHoy)+'</td></tr>';
   }).join('');
 }
