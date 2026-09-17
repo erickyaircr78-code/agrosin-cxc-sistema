@@ -313,7 +313,7 @@ input[type=file]{display:none;}
     <div class="tbl-o">
       <div class="tbl-s">
         <table>
-          <thead><tr><th>Fecha</th><th>Vendedor</th><th>Zona</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Banco</th><th class="tn">Monto</th><th>Estado</th><th style="text-align:center;">WhatsApp</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Vendedor</th><th>Zona</th><th>Cliente</th><th>Folio</th><th>Tipo</th><th>Banco</th><th class="tn">Monto</th><th>Estado</th><th style="text-align:center;">WhatsApp</th><th></th></tr></thead>
           <tbody id="tbodyRecibos"></tbody>
         </table>
       </div>
@@ -439,6 +439,19 @@ input[type=file]{display:none;}
     <div style="font-size:11px;color:#64748b;margin-bottom:14px;">Asegúrate de haber descargado el Excel (botón "⬇ Excel" de arriba) antes de continuar.</div>
     <button type="button" onclick="ejecutarCierreSemana()" style="width:100%;padding:11px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;margin-bottom:8px;cursor:pointer;">Confirmar cierre</button>
     <button type="button" onclick="cerrarModalCerrarSemana()" style="width:100%;padding:10px;background:#f4f6f9;color:#4a5568;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">Cancelar</button>
+  </div>
+</div>
+
+<div id="modalCorregirCobro" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:10px;max-width:380px;width:100%;padding:22px;font-family:'IBM Plex Sans',sans-serif;">
+    <div style="font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:10px;">✕ Eliminar cobro</div>
+    <div id="corregirResumen" style="font-size:12px;color:#334155;line-height:1.6;background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:12px;"></div>
+    <div style="font-size:12px;color:#334155;margin-bottom:10px;">Esto borra el cobro y restaura el saldo de la factura como si nunca se hubiera capturado (uso pensado para pagos duplicados o errores). No se puede deshacer.</div>
+    <label style="font-size:11px;font-weight:700;color:#64748b">PIN de oficina:</label>
+    <input type="password" id="corregirPin" inputmode="numeric" style="width:100%;padding:10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:14px;margin:6px 0 4px;box-sizing:border-box;">
+    <div id="corregirErr" style="display:none;color:#dc2626;font-size:11px;font-weight:700;margin-bottom:10px;">PIN incorrecto</div>
+    <button type="button" onclick="confirmarCorregirCobro()" style="width:100%;padding:11px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;margin-bottom:8px;margin-top:6px;cursor:pointer;">Eliminar cobro</button>
+    <button type="button" onclick="cerrarModalCorregirCobro()" style="width:100%;padding:10px;background:#f4f6f9;color:#4a5568;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">Cancelar</button>
   </div>
 </div>
 
@@ -688,7 +701,7 @@ function renderRecibos(){
     return true;
   }).slice(0,200);
   var tbody = document.getElementById('tbodyRecibos');
-  if(!filtrados.length){ tbody.innerHTML='<tr><td colspan="10" class="remp">Sin recibos aún</td></tr>'; return; }
+  if(!filtrados.length){ tbody.innerHTML='<tr><td colspan="11" class="remp">Sin recibos aún</td></tr>'; return; }
   tbody.innerHTML = filtrados.map(function(c){
     var pill = c.estado==='confirmado' ? '<span class="rpill dep">Confirmado</span>' :
       c.estado==='pendiente' ? '<span class="rpill pend">Pendiente</span>' :
@@ -696,8 +709,71 @@ function renderRecibos(){
     var fueraTag = c.fueraDePlanilla ? ' <span class="rpill atr">FUERA</span>' : '';
     var fotoBtn = c.tieneFoto ? '<span style="cursor:pointer;font-size:14px;" onclick="verFoto(\''+c.id+'\')" title="Ver comprobante">📷</span>' : '';
     var waIcono = c.compartido ? '<span style="color:#15803d;" title="El vendedor tocó compartir">✅</span>' : '<span style="color:#dc2626;font-weight:900;" title="No se tocó el botón de compartir">❌</span>';
-    return '<tr><td style="text-align:left;font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.fecha+'</td><td class="vname">'+c.vendor+'</td><td>'+c.zona+'</td><td>'+c.cliente+fueraTag+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.folio+'</td><td>'+c.tipo+' '+fotoBtn+'</td><td style="font-size:10px;color:var(--ink2);">'+(c.banco||'—')+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:var(--grn);text-align:right;">'+fmt(c.monto)+'</td><td>'+pill+'</td><td style="text-align:center;font-size:14px;">'+waIcono+'</td></tr>';
+    var btnDel = '<button type="button" onclick="abrirModalCorregirCobro(\''+c.id+'\',\''+c.zona+'\',\''+c.key+'\','+(!!c.fueraDePlanilla)+')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:800;cursor:pointer;" title="Eliminar este cobro (requiere PIN)">✕ Eliminar</button>';
+    return '<tr><td style="text-align:left;font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.fecha+'</td><td class="vname">'+c.vendor+'</td><td>'+c.zona+'</td><td>'+c.cliente+fueraTag+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;">'+c.folio+'</td><td>'+c.tipo+' '+fotoBtn+'</td><td style="font-size:10px;color:var(--ink2);">'+(c.banco||'—')+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:var(--grn);text-align:right;">'+fmt(c.monto)+'</td><td>'+pill+'</td><td style="text-align:center;font-size:14px;">'+waIcono+'</td><td>'+btnDel+'</td></tr>';
   }).join('');
+}
+
+/* ══════════ Corregir/eliminar un cobro individual (oficina/Pepe, con PIN) ══════════
+   Para casos como un pago triplicado por mala señal, ya fuera de los 30 min que tiene
+   el vendedor para corregirlo él mismo. Restaura el saldo/estado de la factura igual
+   que "✕ Corregir" en Vendedor, y deja registro en correccionesLog. */
+var _corregirObjetivo = null;
+function abrirModalCorregirCobro(id, zona, k, fueraDePlanilla){
+  var todos = cobrosTodos.concat(fueraPlanillaTodos);
+  var c = todos.find(function(x){ return x.id===id; });
+  if(!c){ alert('No se encontró ese cobro (puede que ya se haya corregido).'); return; }
+  _corregirObjetivo = {id:id, zona:zona, k:k, fueraDePlanilla:fueraDePlanilla, c:c};
+  document.getElementById('corregirResumen').innerHTML =
+    '<b>'+c.vendor+'</b> · '+c.cliente+' · Folio '+c.folio+'<br>'+c.tipo+' — '+fmt(c.monto)+' · '+c.fecha;
+  document.getElementById('corregirPin').value = '';
+  document.getElementById('corregirErr').style.display = 'none';
+  document.getElementById('modalCorregirCobro').style.display = 'flex';
+}
+function cerrarModalCorregirCobro(){
+  document.getElementById('modalCorregirCobro').style.display = 'none';
+  _corregirObjetivo = null;
+}
+function confirmarCorregirCobro(){
+  if(!_corregirObjetivo) return;
+  var pinEscrito = document.getElementById('corregirPin').value.trim();
+  db.ref('config/pinOficina').once('value').then(function(snap){
+    var pinValido = snap.val() || '1234';
+    if(pinEscrito !== pinValido){
+      document.getElementById('corregirErr').style.display = '';
+      return;
+    }
+    var o = _corregirObjetivo;
+    var c = o.c;
+    var basePath = o.fueraDePlanilla ? 'cobrosFueraPlanilla/'+o.zona+'/'+o.k+'/'+o.id : 'cobros/'+o.zona+'/'+o.k+'/'+o.id;
+    function finalizarBorrado(){
+      var updates = {};
+      updates[basePath] = null;
+      db.ref('correccionesLog/'+o.zona+'/'+o.k).push({
+        folio:c.folio||null, cliente:c.cliente||null, monto:c.monto||0, tipo:c.tipo,
+        corregidoTs:firebase.database.ServerValue.TIMESTAMP, tsOriginal:c.ts, vendedor:c.vendor,
+        corregidoPor:'Oficina (Tablero)'
+      });
+      cerrarModalCorregirCobro();
+      alert('✓ Cobro eliminado y saldo de la factura restaurado.');
+    }
+    if(!o.fueraDePlanilla && c.planillaTs && c.folio){
+      var rutaFactura = 'planillas/'+o.zona+'/'+o.k+'/'+c.planillaTs+'/facturas/'+c.folio;
+      db.ref(rutaFactura).once('value').then(function(snap2){
+        var f = snap2.val();
+        if(f){
+          var estadoRestaurado = (c.saldoAntes >= (f.total||0)-0.01) ? 'pendiente' : 'abono';
+          var updatesFactura = {};
+          updatesFactura[rutaFactura+'/saldo'] = c.saldoAntes;
+          updatesFactura[rutaFactura+'/estado'] = estadoRestaurado;
+          updatesFactura[rutaFactura+'/capturadoEnMicrosip'] = c.capturadoEnMicrosipAntes || false;
+          db.ref().update(updatesFactura).then(finalizarBorrado).catch(function(e){ alert('Error: '+e.message); });
+        } else { finalizarBorrado(); }
+      });
+    } else {
+      finalizarBorrado();
+    }
+  });
 }
 
 function renderReconciliacion(){
