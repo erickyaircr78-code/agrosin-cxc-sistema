@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Corregir Factura — AGROSIN</title>
+<style>
+  body{font-family:'Segoe UI',sans-serif;background:#F4F5F7;margin:0;padding:24px;color:#07101F}
+  .box{max-width:560px;margin:0 auto;background:#fff;border-radius:10px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+  h1{font-size:18px;margin:0 0 4px}
+  .sub{color:#64748b;font-size:13px;margin-bottom:20px}
+  label{font-size:12px;font-weight:700;color:#64748b;display:block;margin:12px 0 4px}
+  select,input{width:100%;padding:10px;border-radius:8px;border:1px solid #E2E8F0;font-size:13px;box-sizing:border-box}
+  .fila3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  button{padding:11px 20px;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;width:100%;margin-top:10px}
+  .btnBuscar{background:#1a56db;color:#fff}
+  .btnGuardar{background:#dc2626;color:#fff}
+  .btnGuardar:disabled{background:#c5cad4;cursor:not-allowed}
+  #actual{display:none;margin-top:18px;padding:14px;background:#f8fafc;border-radius:8px;font-size:12px;line-height:1.8}
+  #editar{display:none;margin-top:14px;border-top:1px solid #E2E8F0;padding-top:14px}
+  #msg{margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;display:none}
+  #msg.ok{background:#dcfce7;color:#166534;display:block}
+  #msg.err{background:#fee2e2;color:#991b1b;display:block}
+  #msg.info{background:#eff6ff;color:#1d4ed8;display:block}
+  .nota{font-size:12px;color:#92400e;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 12px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Corregir una factura</h1>
+  <div class="sub">Herramienta de un solo uso — para cuando el saldo o "ya cobrado" de una factura queda mal y no hay ningún cobro real que borrar en Control de Recibos.</div>
+  <div class="nota">⚠️ Solo usar cuando ya se confirmó en Control de Recibos que no hay ningún cobro real detrás del número que está mal. Esto reescribe el dato directo.</div>
+  <div id="estadoConexion" style="font-size:11px;color:#92400e;margin-bottom:10px;">🔴 Conectando a Firebase…</div>
+
+  <div class="fila3">
+    <div><label>Zona</label><select id="selZona"><option value="CDMX">CDMX</option><option value="MORELOS">MORELOS</option><option value="PUEBLA">PUEBLA</option></select></div>
+    <div style="grid-column:span 2"><label>Vendedor (nombre exacto)</label><input type="text" id="inpVendedor" placeholder="ISRAEL ODIN"></div>
+  </div>
+  <label>Folio</label>
+  <input type="text" id="inpFolio" placeholder="AG0063904">
+  <button class="btnBuscar" onclick="buscarFactura()">Buscar factura</button>
+
+  <div id="actual"></div>
+
+  <div id="editar">
+    <label>Saldo correcto ($)</label>
+    <input type="number" step="0.01" id="inpSaldoNuevo">
+    <label>Ya cobrado (montoCobrado) correcto ($)</label>
+    <input type="number" step="0.01" id="inpMontoCobradoNuevo">
+    <label>Estado</label>
+    <select id="selEstadoNuevo">
+      <option value="pendiente">pendiente</option>
+      <option value="abono">abono</option>
+      <option value="cobrada">cobrada</option>
+    </select>
+    <button class="btnGuardar" onclick="guardarCorreccion()">Guardar corrección</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyBxWhvKsx4DL35wKxine4Av7aVM1XxetgA",
+  authDomain:"agrosin-cxc-sistema.firebaseapp.com",
+  databaseURL:"https://agrosin-cxc-sistema-default-rtdb.firebaseio.com",
+  projectId:"agrosin-cxc-sistema",
+  storageBucket:"agrosin-cxc-sistema.firebasestorage.app",
+  messagingSenderId:"91698273557",
+  appId:"1:91698273557:web:158b43ac5129b2c0849d1c"
+});
+var db = firebase.database();
+var _authListo = false;
+firebase.auth().onAuthStateChanged(function(u){
+  if(u){
+    _authListo = true;
+    document.getElementById('estadoConexion').textContent = '🟢 Conectado';
+    document.getElementById('estadoConexion').style.color = '#166534';
+  }
+});
+firebase.auth().signInAnonymously().catch(function(e){
+  mostrarMsg('err','No se pudo conectar a Firebase: '+e.message);
+});
+
+function fmt(n){ return '$'+(+n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function key(nombre){
+  return (nombre||'').trim().toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+
+var _rutaActual = null;
+
+function buscarFactura(){
+  document.getElementById('actual').style.display = 'none';
+  document.getElementById('editar').style.display = 'none';
+  mostrarMsg('info','⏳ Buscando…');
+
+  if(!_authListo){ mostrarMsg('err','Todavía se está conectando a Firebase, espera 2-3 segundos y dale "Buscar factura" otra vez.'); return; }
+
+  var zona = document.getElementById('selZona').value;
+  var vendedorKey = key(document.getElementById('inpVendedor').value);
+  var folio = document.getElementById('inpFolio').value.trim();
+  if(!vendedorKey || !folio){ mostrarMsg('err','Escribe vendedor y folio.'); return; }
+
+  var yaRespondio = false;
+  setTimeout(function(){
+    if(!yaRespondio) mostrarMsg('err','⏱️ Lleva más de 8 segundos sin responder — puede ser la conexión a internet o el celular. Espera un poco más o inténtalo de nuevo.');
+  }, 8000);
+
+  try{
+    db.ref('planillas/'+zona+'/'+vendedorKey).once('value').then(function(snap){
+      yaRespondio = true;
+      var planillas = snap.val() || {};
+      if(!Object.keys(planillas).length){ mostrarMsg('err','No hay NINGUNA planilla guardada para "'+vendedorKey+'" en '+zona+'. Revisa que el nombre esté escrito exactamente igual que en el sistema.'); return; }
+      var tsEncontrado = null, factura = null;
+      Object.keys(planillas).forEach(function(ts){
+        var f = (planillas[ts].facturas || {})[folio];
+        if(f){ tsEncontrado = ts; factura = f; }
+      });
+      if(!factura){ mostrarMsg('err','Sí encontré planillas de ese vendedor, pero ninguna trae el folio "'+folio+'". Revisa que el folio esté bien escrito.'); return; }
+      document.getElementById('msg').style.display = 'none';
+      _rutaActual = 'planillas/'+zona+'/'+vendedorKey+'/'+tsEncontrado+'/facturas/'+folio;
+      document.getElementById('actual').style.display = '';
+      document.getElementById('actual').innerHTML =
+        '<b>'+factura.nombre+'</b> · Folio '+folio+'<br>'+
+        'Total: '+fmt(factura.total)+' · Saldo actual: '+fmt(factura.saldo)+'<br>'+
+        'Ya cobrado (montoCobrado): '+fmt(factura.montoCobrado)+' · Devolución: '+fmt(factura.devolucion)+' · Descuento: '+fmt(factura.descuento)+'<br>'+
+        'Estado actual: '+factura.estado;
+      document.getElementById('inpSaldoNuevo').value = factura.saldo || 0;
+      document.getElementById('inpMontoCobradoNuevo').value = factura.montoCobrado || 0;
+      document.getElementById('selEstadoNuevo').value = factura.estado || 'pendiente';
+      document.getElementById('editar').style.display = '';
+    }).catch(function(e){
+      yaRespondio = true;
+      mostrarMsg('err','Error de Firebase al buscar: '+e.message);
+    });
+  }catch(e){
+    yaRespondio = true;
+    mostrarMsg('err','Error inesperado: '+e.message);
+  }
+}
+
+function guardarCorreccion(){
+  if(!_rutaActual) return;
+  var updates = {};
+  updates[_rutaActual+'/saldo'] = parseFloat(document.getElementById('inpSaldoNuevo').value) || 0;
+  updates[_rutaActual+'/montoCobrado'] = parseFloat(document.getElementById('inpMontoCobradoNuevo').value) || 0;
+  updates[_rutaActual+'/estado'] = document.getElementById('selEstadoNuevo').value;
+  db.ref().update(updates).then(function(){
+    mostrarMsg('ok','✅ Factura corregida. Ya puedes cerrar esta página.');
+  }).catch(function(e){ mostrarMsg('err','Error al guardar: '+e.message); });
+}
+
+function mostrarMsg(tipo, texto){
+  var m = document.getElementById('msg');
+  m.className = tipo; m.textContent = texto; m.style.display = 'block';
+}
+</script>
+</body>
+</html>
