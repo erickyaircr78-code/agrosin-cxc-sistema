@@ -129,7 +129,7 @@ function buscarFactura(){
       if(!factura){ mostrarMsg('err','Sí encontré planillas de ese vendedor, pero ninguna trae el folio "'+folio+'". Revisa que el folio esté bien escrito.'); return; }
       document.getElementById('msg').style.display = 'none';
       _rutaActual = 'planillas/'+zona+'/'+vendedorKey+'/'+tsEncontrado+'/facturas/'+folio;
-      document.getElementById('actual').style.display = '';
+      document.getElementById('actual').style.display = 'block';
       document.getElementById('actual').innerHTML =
         '<b>'+factura.nombre+'</b> · Folio '+folio+'<br>'+
         'Total: '+fmt(factura.total)+' · Saldo actual: '+fmt(factura.saldo)+'<br>'+
@@ -138,7 +138,7 @@ function buscarFactura(){
       document.getElementById('inpSaldoNuevo').value = factura.saldo || 0;
       document.getElementById('inpMontoCobradoNuevo').value = factura.montoCobrado || 0;
       document.getElementById('selEstadoNuevo').value = factura.estado || 'pendiente';
-      document.getElementById('editar').style.display = '';
+      document.getElementById('editar').style.display = 'block';
       console.log('[8] Listo, mostrado en pantalla');
     }).catch(function(e){
       yaRespondio = true;
