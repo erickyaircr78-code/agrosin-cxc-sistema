@@ -945,30 +945,24 @@ function buscarFactura(){
   }).join('');
 }
 function seleccionarFactura(folio){
-  facturaSel = planillaActiva.facturas[folio];
   esFueraDePlanilla = false;
-  mostrarFormularioCobro();
-  // Por si el celular tenía datos viejos de esta factura (mala señal, listener retrasado):
-  // se confirma contra el servidor en segundo plano. Se actualiza facturaSel en silencio
-  // (para que el cálculo final sea correcto) sin re-dibujar el formulario y borrar lo que
-  // el vendedor ya haya empezado a escribir.
-  var folioConfirmar = folio;
-  console.log('[FRESCO] Pidiendo datos frescos de folio', folioConfirmar, 'ruta:', 'planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+folioConfirmar);
-  db.ref('planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+folioConfirmar).once('value').then(function(snap){
+  var cacheLocal = planillaActiva.facturas[folio];
+  facturaSel = cacheLocal; // respaldo, por si el servidor no responde
+  if(!planillaActiva){ mostrarFormularioCobro(); return; }
+  // Se espera la confirmación del servidor ANTES de mostrar el formulario — así la vista
+  // previa ("A COBRAR") nunca muestra un número viejo que luego cambie solo. Con buena señal
+  // esto tarda una fracción de segundo y no se nota.
+  db.ref('planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+folio).once('value').then(function(snap){
     var fresca = snap.val();
-    console.log('[FRESCO] Firebase respondió. montoCobrado fresco=', fresca && fresca.montoCobrado, 'saldo fresco=', fresca && fresca.saldo);
-    console.log('[FRESCO] facturaSel.folio actual=', facturaSel && facturaSel.folio, '¿coincide?', !!(facturaSel && facturaSel.folio===folioConfirmar), 'esFueraDePlanilla=', esFueraDePlanilla);
-    if(fresca && facturaSel && facturaSel.folio===folioConfirmar && !esFueraDePlanilla){
+    if(fresca){
       facturaSel = fresca;
-      planillaActiva.facturas[folioConfirmar] = fresca;
-      var elSaldo = document.querySelector('#factSelBox .fs-stat-val[style*="var(--ora)"]');
-      if(elSaldo) elSaldo.textContent = fmt(fresca.saldo);
-      console.log('[FRESCO] facturaSel actualizado, llamando a recalcular(). modoPago actual=', modoPago);
-      recalcular(); // MUY IMPORTANTE: si no, "A COBRAR" se queda con el cálculo viejo aunque el saldo ya se vea actualizado
-    } else {
-      console.log('[FRESCO] NO se actualizó facturaSel (alguna condición falló)');
+      planillaActiva.facturas[folio] = fresca;
     }
-  }).catch(function(e){ console.error('[FRESCO] Error al confirmar contra el servidor:', e.message); });
+    mostrarFormularioCobro();
+  }).catch(function(e){
+    console.error('No se pudo confirmar la factura contra el servidor, se muestra con el último dato conocido:', e.message);
+    mostrarFormularioCobro();
+  });
 }
 /* ── Cobro fuera de planilla: formulario real con validación (ya no ventanas prompt) ── */
 var RE_FOLIO_FP = /^[A-Za-z]{1,4}\d{4,8}$/;
