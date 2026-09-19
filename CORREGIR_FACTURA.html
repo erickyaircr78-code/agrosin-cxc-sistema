@@ -93,32 +93,39 @@ function key(nombre){
 var _rutaActual = null;
 
 function buscarFactura(){
+  console.log('[1] Se dio clic en Buscar factura');
   document.getElementById('actual').style.display = 'none';
   document.getElementById('editar').style.display = 'none';
   mostrarMsg('info','⏳ Buscando…');
 
-  if(!_authListo){ mostrarMsg('err','Todavía se está conectando a Firebase, espera 2-3 segundos y dale "Buscar factura" otra vez.'); return; }
+  if(!_authListo){ console.log('[X] _authListo es false, se detiene aquí'); mostrarMsg('err','Todavía se está conectando a Firebase, espera 2-3 segundos y dale "Buscar factura" otra vez.'); return; }
+  console.log('[2] _authListo es true, sigue');
 
   var zona = document.getElementById('selZona').value;
   var vendedorKey = key(document.getElementById('inpVendedor').value);
   var folio = document.getElementById('inpFolio').value.trim();
+  console.log('[3] zona=', zona, 'vendedorKey=', vendedorKey, 'folio=', folio);
   if(!vendedorKey || !folio){ mostrarMsg('err','Escribe vendedor y folio.'); return; }
 
   var yaRespondio = false;
   setTimeout(function(){
-    if(!yaRespondio) mostrarMsg('err','⏱️ Lleva más de 8 segundos sin responder — puede ser la conexión a internet o el celular. Espera un poco más o inténtalo de nuevo.');
+    if(!yaRespondio){ console.log('[X] Pasaron 8 seg sin respuesta de Firebase'); mostrarMsg('err','⏱️ Lleva más de 8 segundos sin responder — puede ser la conexión a internet o el celular. Espera un poco más o inténtalo de nuevo.'); }
   }, 8000);
 
+  console.log('[4] Antes de llamar a db.ref(...).once(value)');
   try{
     db.ref('planillas/'+zona+'/'+vendedorKey).once('value').then(function(snap){
       yaRespondio = true;
+      console.log('[5] Firebase respondió. snap.exists()=', snap.exists());
       var planillas = snap.val() || {};
+      console.log('[6] Numero de planillas encontradas:', Object.keys(planillas).length);
       if(!Object.keys(planillas).length){ mostrarMsg('err','No hay NINGUNA planilla guardada para "'+vendedorKey+'" en '+zona+'. Revisa que el nombre esté escrito exactamente igual que en el sistema.'); return; }
       var tsEncontrado = null, factura = null;
       Object.keys(planillas).forEach(function(ts){
         var f = (planillas[ts].facturas || {})[folio];
         if(f){ tsEncontrado = ts; factura = f; }
       });
+      console.log('[7] Factura encontrada?', !!factura, 'en planilla ts=', tsEncontrado);
       if(!factura){ mostrarMsg('err','Sí encontré planillas de ese vendedor, pero ninguna trae el folio "'+folio+'". Revisa que el folio esté bien escrito.'); return; }
       document.getElementById('msg').style.display = 'none';
       _rutaActual = 'planillas/'+zona+'/'+vendedorKey+'/'+tsEncontrado+'/facturas/'+folio;
@@ -132,12 +139,15 @@ function buscarFactura(){
       document.getElementById('inpMontoCobradoNuevo').value = factura.montoCobrado || 0;
       document.getElementById('selEstadoNuevo').value = factura.estado || 'pendiente';
       document.getElementById('editar').style.display = '';
+      console.log('[8] Listo, mostrado en pantalla');
     }).catch(function(e){
       yaRespondio = true;
+      console.log('[X] Firebase rechazó la consulta:', e.code, e.message);
       mostrarMsg('err','Error de Firebase al buscar: '+e.message);
     });
   }catch(e){
     yaRespondio = true;
+    console.log('[X] Excepción de JavaScript:', e.message);
     mostrarMsg('err','Error inesperado: '+e.message);
   }
 }
