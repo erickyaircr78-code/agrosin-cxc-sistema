@@ -54,6 +54,28 @@
     </select>
     <button class="btnGuardar" onclick="guardarCorreccion()">Guardar corrección</button>
   </div>
+
+  <div id="crearCobroSec" style="display:none;margin-top:14px;border-top:1px solid #E2E8F0;padding-top:14px">
+    <div class="sub" style="margin-bottom:10px;">Ahora crea el registro real del cobro, para que aparezca en Depósitos, Historial y Control de Recibos.</div>
+    <label>¿Cómo pagó?</label>
+    <select id="selTipoCobro" onchange="toggleBancoCobro()">
+      <option value="Efectivo">Efectivo</option>
+      <option value="Transferencia">Transferencia</option>
+      <option value="Cheque">Cheque</option>
+      <option value="Depósito">Depósito</option>
+      <option value="Tarjeta">Tarjeta</option>
+    </select>
+    <div id="bloqueBancoCobro" style="display:none;">
+      <label>Banco</label>
+      <input type="text" id="inpBancoCobro" placeholder="Ej. BBVA, Santander...">
+    </div>
+    <label>¿Qué día pagó? (para que salga en el día correcto del Historial)</label>
+    <input type="date" id="inpFechaCobro">
+    <label>Monto del cobro ($)</label>
+    <input type="number" step="0.01" id="inpMontoCobro">
+    <button style="background:#15803d;color:#fff;" onclick="crearCobroReal()">Crear registro de cobro</button>
+  </div>
+
   <div id="msg"></div>
 </div>
 
@@ -91,6 +113,7 @@ function key(nombre){
 }
 
 var _rutaActual = null;
+var _ctx = null;
 
 function buscarFactura(){
   console.log('[1] Se dio clic en Buscar factura');
@@ -129,6 +152,8 @@ function buscarFactura(){
       if(!factura){ mostrarMsg('err','Sí encontré planillas de ese vendedor, pero ninguna trae el folio "'+folio+'". Revisa que el folio esté bien escrito.'); return; }
       document.getElementById('msg').style.display = 'none';
       _rutaActual = 'planillas/'+zona+'/'+vendedorKey+'/'+tsEncontrado+'/facturas/'+folio;
+      _ctx = { zona:zona, vendedorKey:vendedorKey, vendorNombre:document.getElementById('inpVendedor').value.trim(),
+                folio:folio, cliente:factura.nombre, clave:factura.clave, planillaTs:tsEncontrado };
       document.getElementById('actual').style.display = 'block';
       document.getElementById('actual').innerHTML =
         '<b>'+factura.nombre+'</b> · Folio '+folio+'<br>'+
@@ -154,13 +179,58 @@ function buscarFactura(){
 
 function guardarCorreccion(){
   if(!_rutaActual) return;
+  var montoCobradoFinal = parseFloat(document.getElementById('inpMontoCobradoNuevo').value) || 0;
   var updates = {};
   updates[_rutaActual+'/saldo'] = parseFloat(document.getElementById('inpSaldoNuevo').value) || 0;
-  updates[_rutaActual+'/montoCobrado'] = parseFloat(document.getElementById('inpMontoCobradoNuevo').value) || 0;
+  updates[_rutaActual+'/montoCobrado'] = montoCobradoFinal;
   updates[_rutaActual+'/estado'] = document.getElementById('selEstadoNuevo').value;
   db.ref().update(updates).then(function(){
-    mostrarMsg('ok','✅ Factura corregida. Ya puedes cerrar esta página.');
+    mostrarMsg('ok','✅ Factura corregida.');
+    document.getElementById('inpMontoCobro').value = montoCobradoFinal;
+    document.getElementById('inpFechaCobro').valueAsDate = new Date();
+    document.getElementById('crearCobroSec').style.display = 'block';
   }).catch(function(e){ mostrarMsg('err','Error al guardar: '+e.message); });
+}
+
+function toggleBancoCobro(){
+  var tipo = document.getElementById('selTipoCobro').value;
+  document.getElementById('bloqueBancoCobro').style.display = (tipo==='Efectivo') ? 'none' : 'block';
+}
+
+function crearCobroReal(){
+  if(!_ctx) return;
+  var tipo = document.getElementById('selTipoCobro').value;
+  var banco = tipo==='Efectivo' ? null : (document.getElementById('inpBancoCobro').value.trim() || null);
+  var monto = parseFloat(document.getElementById('inpMontoCobro').value) || 0;
+  var fechaInput = document.getElementById('inpFechaCobro').value; // YYYY-MM-DD
+  if(monto<=0){ mostrarMsg('err','Escribe un monto válido.'); return; }
+  if(!fechaInput){ mostrarMsg('err','Elige la fecha en que se cobró.'); return; }
+
+  var partes = fechaInput.split('-');
+  var fechaCobro = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]), 12, 0, 0);
+  var tsManual = fechaCobro.getTime();
+  var fechaTexto = fechaCobro.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+', '+fechaCobro.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+
+  var registro = {
+    vendor: _ctx.vendorNombre, key: _ctx.vendedorKey, zona: _ctx.zona,
+    folio: _ctx.folio, cliente: _ctx.cliente, clave: _ctx.clave || null,
+    fueraDePlanilla: false, planillaTs: _ctx.planillaTs,
+    tipo: tipo, banco: banco, modoPago: 'completo', descuentoPct: 0,
+    monto: monto, devolucion: 0, descuento: 0, favorAplicado: 0, favorGenerado: 0,
+    saldoAntes: monto, saldoDespues: 0, capturadoEnMicrosipAntes: false,
+    ts: tsManual, fecha: fechaTexto, folioRecibo: 'R'+Date.now().toString().slice(-8)+'C',
+    chequePosfechado: null,
+    estado: tipo==='Efectivo' ? 'pendiente' : 'confirmado',
+    corregidoManualmente: true
+  };
+
+  db.ref('cobros/'+_ctx.zona+'/'+_ctx.vendedorKey).push(registro).then(function(){
+    db.ref('correccionesLog/'+_ctx.zona+'/'+_ctx.vendedorKey).push({
+      folio:_ctx.folio, cliente:_ctx.cliente, monto:monto, tipo:'Creación manual de cobro (corrección)',
+      corregidoTs: firebase.database.ServerValue.TIMESTAMP, corregidoPor:'Oficina (CORREGIR_FACTURA)'
+    });
+    mostrarMsg('ok','✅ Cobro creado. Ya va a salir en Historial'+(tipo==='Efectivo'?' y en Depósitos (para que lo deposite)':'')+'. Ya puedes cerrar esta página.');
+  }).catch(function(e){ mostrarMsg('err','Error al crear el cobro: '+e.message); });
 }
 
 function mostrarMsg(tipo, texto){
