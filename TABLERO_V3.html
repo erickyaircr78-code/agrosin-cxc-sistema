@@ -746,16 +746,27 @@ function confirmarCorregirCobro(){
     var o = _corregirObjetivo;
     var c = o.c;
     var basePath = o.fueraDePlanilla ? 'cobrosFueraPlanilla/'+o.zona+'/'+o.k+'/'+o.id : 'cobros/'+o.zona+'/'+o.k+'/'+o.id;
+    console.log('[ELIMINAR] o=', JSON.stringify(o));
+    console.log('[ELIMINAR] basePath a borrar =', basePath);
     function finalizarBorrado(){
       var updates = {};
       updates[basePath] = null;
-      db.ref('correccionesLog/'+o.zona+'/'+o.k).push({
-        folio:c.folio||null, cliente:c.cliente||null, monto:c.monto||0, tipo:c.tipo,
-        corregidoTs:firebase.database.ServerValue.TIMESTAMP, tsOriginal:c.ts, vendedor:c.vendor,
-        corregidoPor:'Oficina (Tablero)'
+      console.log('[ELIMINAR] Enviando update:', JSON.stringify(updates));
+      db.ref().update(updates).then(function(){
+        console.log('[ELIMINAR] Firebase confirmó el update sin error');
+        db.ref(basePath).once('value').then(function(chk){
+          console.log('[ELIMINAR] Verificación: ¿sigue existiendo en esa ruta?', chk.exists(), chk.val());
+        });
+        db.ref('correccionesLog/'+o.zona+'/'+o.k).push({
+          folio:c.folio||null, cliente:c.cliente||null, monto:c.monto||0, tipo:c.tipo,
+          corregidoTs:firebase.database.ServerValue.TIMESTAMP, tsOriginal:c.ts, vendedor:c.vendor,
+          corregidoPor:'Oficina (Tablero)'
+        });
+        cerrarModalCorregirCobro();
+        alert('✓ Cobro eliminado y saldo de la factura restaurado.');
+      }).catch(function(e){
+        alert('Error al eliminar: '+e.message);
       });
-      cerrarModalCorregirCobro();
-      alert('✓ Cobro eliminado y saldo de la factura restaurado.');
     }
     if(!o.fueraDePlanilla && c.planillaTs && c.folio){
       var rutaFactura = 'planillas/'+o.zona+'/'+o.k+'/'+c.planillaTs+'/facturas/'+c.folio;
@@ -767,6 +778,11 @@ function confirmarCorregirCobro(){
           updatesFactura[rutaFactura+'/saldo'] = c.saldoAntes;
           updatesFactura[rutaFactura+'/estado'] = estadoRestaurado;
           updatesFactura[rutaFactura+'/capturadoEnMicrosip'] = c.capturadoEnMicrosipAntes || false;
+          updatesFactura[rutaFactura+'/montoCobrado'] = Math.max(0, (f.montoCobrado||0) - (c.monto||0));
+          updatesFactura[rutaFactura+'/devolucion'] = Math.max(0, (f.devolucion||0) - (c.devolucion||0));
+          updatesFactura[rutaFactura+'/descuento'] = Math.max(0, (f.descuento||0) - (c.descuento||0));
+          updatesFactura[rutaFactura+'/favorAplicado'] = Math.max(0, (f.favorAplicado||0) - (c.favorAplicado||0));
+          updatesFactura[rutaFactura+'/favorGenerado'] = Math.max(0, (f.favorGenerado||0) - (c.favorGenerado||0));
           db.ref().update(updatesFactura).then(finalizarBorrado).catch(function(e){ alert('Error: '+e.message); });
         } else { finalizarBorrado(); }
       });
