@@ -1456,6 +1456,27 @@ function registrarCobro(){
   if(!modoPago){ toast('Antes de continuar, indica si fue pago completo o abono','err'); return; }
   if(tipoActual!=='Efectivo' && !document.getElementById('selBanco').value){ toast('Selecciona el banco/terminal','err'); return; }
 
+  // Justo antes de calcular y guardar, se confirma la factura contra el servidor una ÚLTIMA vez —
+  // sin importar qué tan rápido haya sido el vendedor ni si la lectura de fondo (al elegir la
+  // factura) ya alcanzó a llegar o no. Así el monto que se cobra SIEMPRE se calcula con el dato
+  // más reciente que existe, nunca con uno que el celular tenía guardado de antes.
+  if(esFueraDePlanilla || !planillaActiva){
+    _registrarCobroConDatosListos();
+    return;
+  }
+  var folioActual = facturaSel.folio;
+  db.ref('planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+folioActual).once('value').then(function(snap){
+    var fresca = snap.val();
+    if(fresca){
+      facturaSel = fresca;
+      planillaActiva.facturas[folioActual] = fresca;
+    }
+    _registrarCobroConDatosListos();
+  }).catch(function(e){
+    toast('No se pudo confirmar la factura contra el servidor, inténtalo de nuevo: '+e.message,'err');
+  });
+}
+function _registrarCobroConDatosListos(){
   var saldoAntes = facturaSel.saldo;
   var devolucion = parseFloat(document.getElementById('inpDevolucion').value) || 0;
   var subtotal = Math.max(0, saldoAntes - devolucion);
@@ -1563,13 +1584,8 @@ function registrarCobro(){
       var base = 'planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+facturaSel.folio+'/';
       updates[base+'saldo'] = saldoDespues;
       updates[base+'estado'] = saldoDespues<=0.005 ? 'cobrada' : 'abono';
-      updates[base+'montoCobrado'] = (facturaSel.montoCobrado||0) + monto;
       updates[base+'tipo'] = tipoActual;
       updates[base+'banco'] = banco;
-      updates[base+'devolucion'] = (facturaSel.devolucion||0) + devolucion;
-      updates[base+'descuento'] = (facturaSel.descuento||0) + descuento;
-      updates[base+'favorAplicado'] = (facturaSel.favorAplicado||0) + favorAplicado;
-      updates[base+'favorGenerado'] = (facturaSel.favorGenerado||0) + favorGeneradoRestante;
       updates[base+'cobradoPor'] = miNombre;
       updates[base+'fechaCobro'] = ahora.toLocaleDateString('es-MX');
       // Cualquier pago NUEVO que el vendedor registre siempre necesita que Lupe lo capture en Microsip,
@@ -1615,6 +1631,18 @@ function registrarCobro(){
     }
     ultimoTicket = Object.assign({}, registro, {id: ref.key});
     var cadenaUpdate = db.ref().update(updates);
+    // Los 4 campos acumulados de la factura principal se suman con TRANSACCIÓN de Firebase
+    // (no con "update" normal): así, el servidor siempre suma contra su propio valor más
+    // reciente, y nunca se pierde un cobro anterior aunque el celular tuviera datos viejos
+    // por mala señal — esto fue la causa real de al menos 2 facturas descuadradas hoy.
+    if(!esFueraDePlanilla && planillaActiva){
+      var baseAcum = 'planillas/'+miZona+'/'+miKey+'/'+planillaActiva.ts+'/facturas/'+facturaSel.folio+'/';
+      db.ref(baseAcum+'montoCobrado').transaction(function(actual){ return (actual||0) + monto; });
+      if(devolucion>0) db.ref(baseAcum+'devolucion').transaction(function(actual){ return (actual||0) + devolucion; });
+      if(descuento>0) db.ref(baseAcum+'descuento').transaction(function(actual){ return (actual||0) + descuento; });
+      if(favorAplicado>0) db.ref(baseAcum+'favorAplicado').transaction(function(actual){ return (actual||0) + favorAplicado; });
+      if(favorGeneradoRestante>0) db.ref(baseAcum+'favorGenerado').transaction(function(actual){ return (actual||0) + favorGeneradoRestante; });
+    }
     // Si adjuntó foto del comprobante (transferencia/depósito/tarjeta), se guarda ligada a este cobro
     if(fotoComprobanteBase64){
       var idFotoCobro = ref.key;
