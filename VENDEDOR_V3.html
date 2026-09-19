@@ -1366,8 +1366,9 @@ function recalcular(){
     // distintas, la pantalla puede mostrar un monto que luego el guardado real no acepta.
     var pct = aplicarDescuento ? (pctAutorizadoCliente || 0) : 0;
     var totalOriginal = facturaSel.total || saldoAntes;
+    var devolucionPrevia = facturaSel.devolucion || 0;
     var yaAcumulado = facturaSel.montoCobrado || 0;
-    var totalNetoPorDevolucion = Math.max(0, totalOriginal - devolucion);
+    var totalNetoPorDevolucion = Math.max(0, totalOriginal - devolucionPrevia - devolucion);
     var totalConDescuentoC = totalNetoPorDevolucion * (1 - pct/100);
     var descuentoMonto = totalNetoPorDevolucion - totalConDescuentoC;
     var trasDescuento = Math.max(0, totalConDescuentoC - yaAcumulado);
@@ -1441,8 +1442,9 @@ function registrarCobro(){
     // así, si ya hubo abonos previos (con cualquier forma de pago) sin descuento, el descuento sigue
     // siendo el correcto sobre el total completo, y no se vuelve a aplicar de más sobre lo que resta.
     var totalOriginal = facturaSel.total || saldoAntes; // por seguridad, si alguna factura vieja no trae total
+    var devolucionPrevia = facturaSel.devolucion || 0; // devoluciones ya registradas en cobros anteriores de esta misma factura
     var yaAcumulado = facturaSel.montoCobrado || 0; // lo que ya se había pagado antes en abonos previos
-    var totalNetoPorDevolucion = Math.max(0, totalOriginal - devolucion);
+    var totalNetoPorDevolucion = Math.max(0, totalOriginal - devolucionPrevia - devolucion);
     var totalConDescuento = totalNetoPorDevolucion * (1 - descuentoPct/100);
     descuento = totalNetoPorDevolucion - totalConDescuento;
     var trasDescuento = Math.max(0, totalConDescuento - yaAcumulado);
